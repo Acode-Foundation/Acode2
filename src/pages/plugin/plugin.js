@@ -18,6 +18,16 @@ import markdownItTaskLists from "markdown-it-task-lists";
 import helpers from "utils/helpers";
 import Url from "utils/Url";
 import view from "./plugin.view.js";
+// CodeMirror 6 static highlighting
+import { highlightCode, classHighlighter } from "@lezer/highlight";
+import { HighlightStyle, LanguageDescription } from "@codemirror/language";
+import { StyleModule } from "style-mod";
+import { getModeForPath } from "../../codemirror/modelist";
+import {
+	getHighlightStyleById,
+	getThemeSurfaceById,
+} from "../../codemirror/themes";
+import { languages as languageData } from "@codemirror/language-data";
 
 let $lastPluginPage;
 
@@ -407,6 +417,7 @@ export default async function PluginInclude(
 
 		// add copy button to code blocks
 		const codeBlocks = $page.body.querySelectorAll("pre");
+		const highlightJobs = [];
 		codeBlocks.forEach((pre) => {
 			pre.style.position = "relative";
 			const copyButton = document.createElement("button");
@@ -415,24 +426,74 @@ export default async function PluginInclude(
 
 			const codeElement = pre.querySelector("code");
 			if (codeElement) {
-				const langMatch = codeElement.className.match(
-					/language-(\w+)|(javascript)/,
-				);
-				if (langMatch) {
-					const langMap = {
-						bash: "sh",
-						shell: "sh",
-					};
-					const lang = langMatch[1] || langMatch[2];
-					const mappedLang = langMap[lang] || lang;
-					const highlight = ace.require("ace/ext/static_highlight");
-					highlight(codeElement, {
-						mode: `ace/mode/${mappedLang}`,
-						theme: settings.value.editorTheme.startsWith("ace/theme/")
-							? settings.value.editorTheme
-							: "ace/theme/" + settings.value.editorTheme,
-					});
-				}
+				const job = (async () => {
+					try {
+						const langMatch = codeElement.className.match(
+							/language-(\w+)|(javascript)/,
+						);
+						const lang = (langMatch?.[1] || langMatch?.[2] || "").toLowerCase();
+						const parser = await resolveParserFromModelist(lang);
+						if (!parser) return;
+						const code = codeElement.textContent || "";
+						const tree = parser.parse(code);
+						// Rebuild content with highlighted spans
+						while (codeElement.firstChild)
+							codeElement.removeChild(codeElement.firstChild);
+						const themeId = settings?.value?.editorTheme;
+						const highlighter =
+							resolveHighlightStyleForTheme(themeId) ||
+							defaultTokClassHighlighter();
+						// If using a HighlightStyle with a style module, mount it so CSS applies
+						if (highlighter instanceof HighlightStyle && highlighter.module) {
+							try {
+								StyleModule.mount(document, highlighter.module);
+							} catch (_) {}
+						}
+						// Apply theme surface colors to the code block container
+						try {
+							const surf = getThemeSurfaceById(themeId);
+							if (surf && (surf.background || surf.foreground)) {
+								if (surf.background)
+									pre.style.backgroundColor = surf.background;
+								if (surf.foreground) pre.style.color = surf.foreground;
+								const inner = pre.querySelector("div, code");
+								if (inner && surf.background)
+									inner.style.backgroundColor = surf.background;
+							} else {
+								// Fallback: sniff colors from a live cm editor if present
+								const cm = document.querySelector(".cm-editor");
+								if (cm) {
+									const cs = getComputedStyle(cm);
+									pre.style.backgroundColor = cs.backgroundColor;
+									pre.style.color = cs.color;
+									const inner = pre.querySelector("div, code");
+									if (inner) inner.style.backgroundColor = cs.backgroundColor;
+								}
+							}
+						} catch (_) {}
+						highlightCode(
+							code,
+							tree,
+							highlighter,
+							(text, classes) => {
+								if (classes && classes.length) {
+									const span = document.createElement("span");
+									span.className = classes;
+									span.textContent = text;
+									codeElement.appendChild(span);
+								} else {
+									codeElement.appendChild(document.createTextNode(text));
+								}
+							},
+							() => {
+								codeElement.appendChild(document.createTextNode("\n"));
+							},
+						);
+					} catch (err) {
+						console.error("Static highlight failed", err);
+					}
+				})();
+				highlightJobs.push(job);
 			}
 
 			copyButton.addEventListener("click", async () => {
@@ -454,6 +515,11 @@ export default async function PluginInclude(
 			pre.appendChild(copyButton);
 		});
 
+		// Wait for any async highlighters to complete before proceeding
+		try {
+			await Promise.all(highlightJobs);
+		} catch (_) {}
+
 		if ($settingsIcon) {
 			$settingsIcon.remove();
 			$settingsIcon = null;
@@ -472,6 +538,53 @@ export default async function PluginInclude(
 				$page.header.append($settingsIcon);
 			}
 		}
+	}
+
+	async function resolveParserFromModelist(lang) {
+		try {
+			if (!lang) return null;
+			const base = String(lang).toLowerCase();
+			// 1) Try by extension/filename via modelist (handles plugin-registered modes)
+			for (const cand of [base, `file.${base}`]) {
+				const mode = getModeForPath(cand);
+				const loader = mode?.getExtension?.();
+				if (typeof loader === "function") {
+					let ext = null;
+					try {
+						ext = await loader();
+					} catch (_) {}
+					if (!ext) continue;
+					if (ext?.language?.parser) return ext.language.parser;
+					if (ext?.parser) return ext.parser;
+					if (Array.isArray(ext)) {
+						for (const e of ext) {
+							if (e?.language?.parser) return e.language.parser;
+							if (e?.parser) return e.parser;
+						}
+					}
+				}
+			}
+			// 2) Fallback by name/alias against @codemirror/language-data
+			const desc = LanguageDescription.matchLanguageName(
+				languageData,
+				base,
+				true,
+			);
+			if (desc) {
+				const support = desc.support || (await desc.load());
+				if (support?.language?.parser) return support.language.parser;
+			}
+		} catch (_) {}
+		return null;
+	}
+
+	function resolveHighlightStyleForTheme(themeId) {
+		return getHighlightStyleById(themeId);
+	}
+
+	function defaultTokClassHighlighter() {
+		// Uses tok-* CSS classes; styles provided in plugin.scss
+		return classHighlighter;
 	}
 
 	async function loadAd(el) {

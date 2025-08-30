@@ -238,24 +238,68 @@
       padding: 0 0 24px;
 
       #overview {
+        // Ensure the container pre actually scrolls, not the inner code element
+        pre {
+          overflow: auto;
+          max-width: 100%;
+          box-sizing: border-box;
+          position: relative;
+          border-radius: 6px;
+          -webkit-border-radius: 6px;
+          background-clip: padding-box;
+          padding: 1em;
+          margin: 5px 0;
+        }
+
+        // Make code fill the pre and avoid inner scrollbars spilling outside
+        pre > code[class*="language-"] {
+          display: block;
+          width: 100%;
+          overflow: visible;
+          background: transparent !important;
+        }
+
+        // Copy button stays inside the block
+        pre .copy-button {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          padding: 4px 8px;
+          font-size: 12px;
+          border: 1px solid var(--border-color);
+          border-radius: 4px;
+          background: color-mix(in srgb, var(--secondary-color) 70%, transparent);
+          color: var(--primary-text-color);
+          cursor: pointer;
+          z-index: 1;
+        }
+
         [class*="language-"] {
           word-wrap: normal;
           white-space: pre;
           font-size: 0.8rem;
-          border-radius: 4px;
-          padding: 1em;
-          margin: 5px 0;
-          background: var(--primary-color);
+          border-radius: 6px;
+          background: transparent !important;
           color: var(--primary-text-color);
-          /* border-left: solid 5px var(--active-color); */
-          overflow: auto;
-          width: calc(100% - 10px);
+          overflow: visible;
+          width: 100%;
           display: block;
           user-select: text;
 
-          div {
-            background: var(--primary-color);
-          }
+          // CodeMirror 6 static highlight token classes
+          .tok-comment { opacity: 0.7; font-style: italic; }
+          .tok-keyword { color: color-mix(in srgb, var(--link-text-color) 80%, var(--primary-text-color)); }
+          .tok-operator { color: color-mix(in srgb, var(--link-text-color) 70%, var(--primary-text-color)); }
+          .tok-string, .tok-string2 { color: color-mix(in srgb, #5bd183 80%, var(--primary-text-color)); }
+          .tok-number { color: color-mix(in srgb, #e6b422 85%, var(--primary-text-color)); }
+          .tok-atom, .tok-bool { color: color-mix(in srgb, #56b6c2 80%, var(--primary-text-color)); }
+          .tok-variableName { color: var(--primary-text-color); }
+          .tok-variableName2 { color: color-mix(in srgb, var(--link-text-color) 60%, var(--primary-text-color)); }
+          .tok-definition { text-decoration: none; }
+          .tok-propertyName { color: color-mix(in srgb, #61afef 80%, var(--primary-text-color)); }
+          .tok-typeName, .tok-className, .tok-namespace, .tok-macroName { color: color-mix(in srgb, #c678dd 80%, var(--primary-text-color)); }
+          .tok-meta { color: color-mix(in srgb, var(--primary-text-color) 70%, transparent); }
+          .tok-punctuation { color: color-mix(in srgb, var(--primary-text-color) 80%, transparent); }
         }
       }
     }

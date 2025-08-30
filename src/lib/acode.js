@@ -95,8 +95,7 @@ export default class Acode {
 
 		// CodeMirror editor theme API for plugins
 		const editorThemesModule = {
-			register: (id, caption, isDark, getExtension) =>
-				cmThemeRegistry.addTheme(id, caption, isDark, getExtension),
+			register: (...args) => cmThemeRegistry.addTheme(...args),
 			unregister: (id) => cmThemeRegistry.removeTheme(id),
 			list: () => cmThemeRegistry.getThemes(),
 			apply: (id) => editorManager?.editor?.setTheme?.(id),
