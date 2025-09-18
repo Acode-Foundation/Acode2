@@ -39,31 +39,38 @@ module.exports = (env, options) => {
   // if (mode === 'production') {
   rules.push({
     test: /\.m?js$/,
-    exclude: /node_modules\/(@codemirror|codemirror)/, // Exclude CodeMirror files from html-tag-js loader
-    use: [
-      'html-tag-js/jsx/tag-loader.js',
+    oneOf: [
       {
-        loader: 'babel-loader',
-        options: {
-          presets: ['@babel/preset-env'],
-        },
+        // 1. FIRST branch – only for CodeMirror packages
+        //     We want *only* babel-loader here so that
+        //     html-tag-js’s tag-loader never touches these files.
+        include: /node_modules[\\/](?:@codemirror|codemirror)/,
+        use: { loader: 'babel-loader', options: { presets: ['@babel/preset-env'] } },
+      },
+      {
+        // 2. SECOND branch – all other JS
+        //     Both html-tag-js’s tag-loader and babel-loader run here.
+        use: [
+          'html-tag-js/jsx/tag-loader.js',
+          { loader: 'babel-loader', options: { presets: ['@babel/preset-env'] } },
+        ],
       },
     ],
   });
 
   // Separate rule for CodeMirror files - only babel-loader, no html-tag-js
-  rules.push({
-    test: /\.m?js$/,
-    include: /node_modules\/(@codemirror|codemirror)/,
-    use: [
-      {
-        loader: 'babel-loader',
-        options: {
-          presets: ['@babel/preset-env'],
-        },
-      },
-    ],
-  });
+  // rules.push({
+  //   test: /\.m?js$/,
+  //   include: /node_modules\/(@codemirror|codemirror)/,
+  //   use: [
+  //     {
+  //       loader: 'babel-loader',
+  //       options: {
+  //         presets: ['@babel/preset-env'],
+  //       },
+  //     },
+  //   ],
+  // });
   // }
 
   const main = {

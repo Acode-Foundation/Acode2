@@ -2,6 +2,7 @@ import sidebarApps from "sidebarApps";
 
 // TODO: Migrate commands and key bindings to CodeMirror
 // import { setCommands, setKeyBindings } from "ace/commands";
+import CommandManager from "./commandManager";
 // TODO: Migrate touch handlers to CodeMirror
 // import touchListeners, { scrollAnimationFrame } from "ace/touchHandler";
 
@@ -291,10 +292,10 @@ async function EditorManager($header, $body) {
 						transition: "opacity .12s ease",
 					},
 					".cm-gutter.cm-foldGutter:hover .cm-gutterElement, .cm-gutter.cm-foldGutter .cm-gutterElement:hover":
-						{
-							opacity: 1,
-							pointerEvents: "auto",
-						},
+					{
+						opacity: 1,
+						pointerEvents: "auto",
+					},
 				});
 			},
 		},
@@ -378,7 +379,7 @@ async function EditorManager($header, $body) {
 	 * @param {string} text
 	 * @returns {boolean} success
 	 */
-	editor.insert = function (text) {
+	editor.insert = function(text) {
 		try {
 			const { from, to } = editor.state.selection.main;
 			const insertText = String(text ?? "");
@@ -397,7 +398,7 @@ async function EditorManager($header, $body) {
 	};
 
 	// Set CodeMirror theme by id registered in our registry
-	editor.setTheme = function (themeId) {
+	editor.setTheme = function(themeId) {
 		try {
 			const id = String(themeId || "");
 			const theme = getThemeById(id) || getThemeById(id.replace(/-/g, "_"));
@@ -423,7 +424,7 @@ async function EditorManager($header, $body) {
 	 * @param {boolean} animate - Whether to animate (not used in CodeMirror, for compatibility)
 	 * @returns {boolean} success
 	 */
-	editor.gotoLine = function (line, column = 0, animate = false) {
+	editor.gotoLine = function(line, column = 0, animate = false) {
 		try {
 			const { state } = editor;
 			const { doc } = state;
@@ -500,7 +501,7 @@ async function EditorManager($header, $body) {
 	 * Get current cursor position)
 	 * @returns {{row: number, column: number}} Cursor position
 	 */
-	editor.getCursorPosition = function () {
+	editor.getCursorPosition = function() {
 		try {
 			const head = editor.state.selection.main.head;
 			const cursor = editor.state.doc.lineAt(head);
@@ -516,7 +517,7 @@ async function EditorManager($header, $body) {
 	 * Move cursor to specific position
 	 * @param {{row: number, column: number}} pos - Position to move to
 	 */
-	editor.moveCursorToPosition = function (pos) {
+	editor.moveCursorToPosition = function(pos) {
 		try {
 			const lineNum = Math.max(1, pos.row || 1);
 			const col = Math.max(0, pos.column || 0);
@@ -530,7 +531,7 @@ async function EditorManager($header, $body) {
 	 * Get the entire document value
 	 * @returns {string} Document content
 	 */
-	editor.getValue = function () {
+	editor.getValue = function() {
 		try {
 			return editor.state.doc.toString();
 		} catch (_) {
@@ -558,7 +559,7 @@ async function EditorManager($header, $body) {
 		 * Get current selection range
 		 * @returns {{start: {row: number, column: number}, end: {row: number, column: number}}} Selection range
 		 */
-		getRange: function () {
+		getRange: function() {
 			try {
 				const { from, to } = editor.state.selection.main;
 				const fromLine = editor.state.doc.lineAt(from);
@@ -582,7 +583,7 @@ async function EditorManager($header, $body) {
 		 * Get cursor position
 		 * @returns {{row: number, column: number}} Cursor position
 		 */
-		getCursor: function () {
+		getCursor: function() {
 			return editor.getCursorPosition();
 		},
 	};
@@ -591,7 +592,7 @@ async function EditorManager($header, $body) {
 	 * Get selected text or text under cursor (CodeMirror implementation)
 	 * @returns {string} Selected text
 	 */
-	editor.getCopyText = function () {
+	editor.getCopyText = function() {
 		try {
 			const { from, to } = editor.state.selection.main;
 			if (from === to) return ""; // No selection
@@ -633,7 +634,7 @@ async function EditorManager($header, $body) {
 								editor.dispatch({
 									effects: languageCompartment.reconfigure(ext || []),
 								});
-							} catch (_) {}
+							} catch (_) { }
 						})
 						.catch(() => {
 							// ignore load errors; remain in plain text
@@ -693,7 +694,7 @@ async function EditorManager($header, $body) {
 				const mainIndex = sel.mainIndex ?? 0;
 				restoreSelection(editor, { ranges, mainIndex });
 			}
-		} catch (_) {}
+		} catch (_) { }
 
 		// Restore folds from previous state if available
 		try {
@@ -701,7 +702,7 @@ async function EditorManager($header, $body) {
 			if (folds && folds.length) {
 				restoreFolds(editor, folds);
 			}
-		} catch (_) {}
+		} catch (_) { }
 
 		// Restore last known scroll position if present
 		if (
@@ -748,7 +749,7 @@ async function EditorManager($header, $body) {
 	});
 	const manager = {
 		files: [],
-		onupdate: () => {},
+		onupdate: () => { },
 		activeFile: null,
 		addFile,
 		editor,
@@ -810,7 +811,7 @@ async function EditorManager($header, $body) {
 	try {
 		const desired = appSettings?.value?.editorTheme || "one_dark";
 		editor.setTheme(desired);
-	} catch (_) {}
+	} catch (_) { }
 
 	// Ensure initial options reflect settings
 	applyOptions();
@@ -821,7 +822,7 @@ async function EditorManager($header, $body) {
 	);
 	$hScrollbar.onhide = $vScrollbar.onhide = updateFloatingButton.bind({}, true);
 
-	appSettings.on("update:textWrap", function () {
+	appSettings.on("update:textWrap", function() {
 		updateMargin();
 		applyOptions(["textWrap"]);
 	});
@@ -842,30 +843,30 @@ async function EditorManager($header, $body) {
 		applyOptions(["linenumbers", "relativeLineNumbers"]);
 	}
 
-	appSettings.on("update:tabSize", function () {
+	appSettings.on("update:tabSize", function() {
 		updateEditorIndentationSettings();
 	});
 
-	appSettings.on("update:softTab", function () {
+	appSettings.on("update:softTab", function() {
 		updateEditorIndentationSettings();
 	});
 
 	// Show spaces/tabs and trailing whitespace
-	appSettings.on("update:showSpaces", function () {
+	appSettings.on("update:showSpaces", function() {
 		applyOptions(["showSpaces"]);
 	});
 
 	// Font size update for CodeMirror
-	appSettings.on("update:fontSize", function () {
+	appSettings.on("update:fontSize", function() {
 		updateEditorStyleFromSettings();
 	});
 
 	// Font family update for CodeMirror
-	appSettings.on("update:editorFont", function () {
+	appSettings.on("update:editorFont", function() {
 		updateEditorStyleFromSettings();
 	});
 
-	appSettings.on("update:openFileListPos", function (value) {
+	appSettings.on("update:openFileListPos", function(value) {
 		initFileTabContainer();
 		$vScrollbar.resize();
 	});
@@ -874,27 +875,27 @@ async function EditorManager($header, $body) {
 	// 	// manager.editor.setOption("showPrintMargin", value);
 	// });
 
-	appSettings.on("update:scrollbarSize", function (value) {
+	appSettings.on("update:scrollbarSize", function(value) {
 		$vScrollbar.size = value;
 		$hScrollbar.size = value;
 	});
 
 	// Live autocompletion (activateOnTyping)
-	appSettings.on("update:liveAutoCompletion", function () {
+	appSettings.on("update:liveAutoCompletion", function() {
 		applyOptions(["liveAutoCompletion"]);
 	});
 
-	appSettings.on("update:linenumbers", function () {
+	appSettings.on("update:linenumbers", function() {
 		updateMargin(true);
 		updateEditorLineNumbersFromSettings();
 	});
 
 	// Line height update for CodeMirror
-	appSettings.on("update:lineHeight", function () {
+	appSettings.on("update:lineHeight", function() {
 		updateEditorStyleFromSettings();
 	});
 
-	appSettings.on("update:relativeLineNumbers", function () {
+	appSettings.on("update:relativeLineNumbers", function() {
 		updateEditorLineNumbersFromSettings();
 	});
 
@@ -902,7 +903,7 @@ async function EditorManager($header, $body) {
 	// 	// Not applicable in CodeMirror (Ace-era). No-op for now.
 	// });
 
-	appSettings.on("update:rtlText", function () {
+	appSettings.on("update:rtlText", function() {
 		applyOptions(["rtlText"]);
 	});
 
@@ -914,26 +915,26 @@ async function EditorManager($header, $body) {
 	// 	// Not applicable in CodeMirror (Ace-era). No-op for now.
 	// });
 
-	appSettings.on("update:colorPreview", function () {
+	appSettings.on("update:colorPreview", function() {
 		const file = manager.activeFile;
 		if (file?.type === "editor") applyFileToEditor(file);
 	});
 
-	appSettings.on("update:showSideButtons", function () {
+	appSettings.on("update:showSideButtons", function() {
 		updateMargin();
 		updateSideButtonContainer();
 	});
 
-	appSettings.on("update:showAnnotations", function () {
+	appSettings.on("update:showAnnotations", function() {
 		updateMargin(true);
 	});
 
-	appSettings.on("update:fadeFoldWidgets", function () {
+	appSettings.on("update:fadeFoldWidgets", function() {
 		applyOptions(["fadeFoldWidgets"]);
 	});
 
 	// Toggle rainbow brackets
-	appSettings.on("update:rainbowBrackets", function () {
+	appSettings.on("update:rainbowBrackets", function() {
 		applyOptions(["rainbowBrackets"]);
 	});
 
@@ -949,7 +950,7 @@ async function EditorManager($header, $body) {
 			// Mirror latest state only on doc changes to avoid clobbering async loads
 			try {
 				file.session = update.state;
-			} catch (_) {}
+			} catch (_) { }
 
 			// Debounced change handling (unsaved flag, cache, autosave)
 			if (checkTimeout) clearTimeout(checkTimeout);
@@ -960,7 +961,7 @@ async function EditorManager($header, $body) {
 				file.isUnsaved = changed;
 				try {
 					await file.writeToCache();
-				} catch (_) {}
+				} catch (_) { }
 
 				events.emit("file-content-changed", file);
 				manager.onupdate("file-changed");
@@ -1005,7 +1006,7 @@ async function EditorManager($header, $body) {
 		editor.dispatch({
 			effects: StateEffect.appendConfig.of(getDocSyncListener()),
 		});
-	} catch (_) {}
+	} catch (_) { }
 
 	return manager;
 
@@ -1111,6 +1112,9 @@ async function EditorManager($header, $body) {
 		// touchListeners(editor);
 		// TODO: Implement commands for CodeMirror
 		// setCommands(editor);
+		editor.commands = new CommandManager(editor);
+		await editor.commands.loadKeybindingsFromFile(KEYBINDING_FILE)
+		// loading commands from main file
 		// TODO: Implement key bindings for CodeMirror
 		// await setKeyBindings(editor);
 		// TODO: Implement Emmet for CodeMirror
@@ -1403,11 +1407,11 @@ async function EditorManager($header, $body) {
 		if (prev?.type === "editor") {
 			try {
 				prev.session = editor.state;
-			} catch (_) {}
+			} catch (_) { }
 			try {
 				prev.lastScrollTop = editor.scrollDOM?.scrollTop || 0;
 				prev.lastScrollLeft = editor.scrollDOM?.scrollLeft || 0;
-			} catch (_) {}
+			} catch (_) { }
 		}
 
 		manager.activeFile = file;
