@@ -1,7 +1,14 @@
 import sidebarApps from "sidebarApps";
 
-// TODO: Migrate commands and key bindings to CodeMirror
-// import { setCommands, setKeyBindings } from "ace/commands";
+import {
+	setKeyBindings as applyKeyBindings,
+	executeCommand,
+	getCommandKeymapExtension,
+	getRegisteredCommands,
+	refreshCommandKeymap,
+	registerExternalCommand,
+	removeExternalCommand,
+} from "../codemirror/commandRegistry";
 // TODO: Migrate touch handlers to CodeMirror
 // import touchListeners, { scrollAnimationFrame } from "ace/touchHandler";
 
@@ -10,6 +17,7 @@ import { search } from "@codemirror/search";
 import { Compartment, EditorState, StateEffect } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 import {
+	EditorView,
 	highlightActiveLineGutter,
 	highlightTrailingWhitespace,
 	highlightWhitespace,
@@ -22,12 +30,7 @@ import {
 	expandAbbreviation,
 	wrapWithAbbreviation,
 } from "@emmetio/codemirror6-plugin";
-// CodeMirror imports
-import { basicSetup, EditorView } from "codemirror";
-// TODO: Add search keymap when implementing search functionality
-// import { searchKeymap } from "@codemirror/search";
-// TODO: Add keymaps when implementing command system
-// import { defaultKeymap, historyKeymap } from "@codemirror/commands";
+import createBaseExtensions from "../codemirror/baseExtensions";
 // CodeMirror mode management
 import {
 	getModeForPath,
@@ -172,26 +175,17 @@ async function EditorManager($header, $body) {
 	function makeLineNumberExtension() {
 		const { linenumbers = true, relativeLineNumbers = false } =
 			appSettings?.value || {};
-		// When disabled, hide the default basicSetup line number gutter via theme
 		if (!linenumbers)
 			return EditorView.theme({
-				".cm-gutter.cm-lineNumbers": {
+				".cm-gutter": {
 					display: "none !important",
-					width: "0px !important",
-					minWidth: "0px !important",
-				},
-				".cm-lineNumbers .cm-gutterElement": {
-					display: "none !important",
-				},
-				".cm-gutters": {
 					width: "0px !important",
 					minWidth: "0px !important",
 					border: "none !important",
 				},
 			});
-		// When enabled (non-relative), rely on basicSetup's built-in lineNumbers
-		if (!relativeLineNumbers) return [];
-		// Relative numbering: override with custom formatter
+		if (!relativeLineNumbers)
+			return [lineNumbers(), highlightActiveLineGutter()];
 		return [
 			lineNumbers({
 				formatNumber: (lineNo, state) => {
@@ -351,7 +345,8 @@ async function EditorManager($header, $body) {
 	const editorState = EditorState.create({
 		doc: "",
 		extensions: [
-			basicSetup,
+			...createBaseExtensions(),
+			getCommandKeymapExtension(),
 			// Default theme
 			themeCompartment.of(oneDark),
 			fixedHeightTheme,
@@ -370,6 +365,36 @@ async function EditorManager($header, $body) {
 	const editor = new EditorView({
 		state: editorState,
 		parent: $container,
+	});
+
+	await applyKeyBindings(editor);
+
+	editor.execCommand = function (commandName) {
+		if (!commandName) return false;
+		return executeCommand(String(commandName), editor);
+	};
+
+	editor.commands = {
+		addCommand(descriptor) {
+			const command = registerExternalCommand(descriptor);
+			refreshCommandKeymap(editor);
+			return command;
+		},
+		removeCommand(name) {
+			if (!name) return;
+			removeExternalCommand(name);
+			refreshCommandKeymap(editor);
+		},
+	};
+
+	Object.defineProperty(editor.commands, "commands", {
+		get() {
+			const map = {};
+			getRegisteredCommands().forEach((cmd) => {
+				map[cmd.name] = cmd;
+			});
+			return map;
+		},
 	});
 
 	// Provide minimal Ace-like API compatibility used by plugins
@@ -605,7 +630,8 @@ async function EditorManager($header, $body) {
 	function applyFileToEditor(file) {
 		if (!file || file.type !== "editor") return;
 		const baseExtensions = [
-			basicSetup,
+			...createBaseExtensions(),
+			getCommandKeymapExtension(),
 			// keep compartment in the state to allow dynamic theme changes later
 			themeCompartment.of(oneDark),
 			fixedHeightTheme,

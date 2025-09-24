@@ -13,6 +13,7 @@ import searchHistory from "lib/searchHistory";
 import appSettings from "lib/settings";
 import searchSettings from "settings/searchSettings";
 import KeyboardEvent from "utils/keyboardEvent";
+import { executeCommand } from "../codemirror/commandRegistry";
 
 /**@type {HTMLInputElement | HTMLTextAreaElement} */
 let input;
@@ -290,9 +291,12 @@ export default function actions(action, value) {
 			editor.insert(value);
 			return true;
 
-		case "command":
-			editor.execCommand(value);
-			return true;
+		case "command": {
+			const commandName =
+				typeof value === "string" ? value : String(value ?? "");
+			if (!commandName) return false;
+			return executeCommand(commandName, editor);
+		}
 
 		case "key": {
 			value = Number.parseInt(value, 10);

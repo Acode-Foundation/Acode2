@@ -1,6 +1,5 @@
 import fsOperation from "fileSystem";
 import ajax from "@deadlyjack/ajax";
-import { resetKeyBindings } from "ace/commands";
 import settingsPage from "components/settingsPage";
 import loader from "dialogs/loader";
 import actions from "handlers/quickTools";
@@ -14,6 +13,7 @@ import QuickToolsSettings from "pages/quickTools";
 import encodings, { getEncoding } from "utils/encodings";
 import helpers from "utils/helpers";
 import Url from "utils/Url";
+import { resetKeyBindings } from "../codemirror/commandRegistry";
 
 export default function otherSettings() {
 	const values = appSettings.value;

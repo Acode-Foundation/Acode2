@@ -42,6 +42,13 @@ import encodings, { decode, encode } from "utils/encodings";
 import helpers from "utils/helpers";
 import KeyboardEvent from "utils/keyboardEvent";
 import Url from "utils/Url";
+import {
+	getRegisteredCommands as listRegisteredCommands,
+	refreshCommandKeymap,
+	registerExternalCommand,
+	removeExternalCommand,
+	executeCommand as runCommand,
+} from "../codemirror/commandRegistry";
 import { addMode, removeMode } from "../codemirror/modelist";
 import cmThemeRegistry from "../codemirror/themes";
 import constants from "./constants";
@@ -193,6 +200,7 @@ export default class Acode {
 		this.define("terminal", terminalModule);
 		this.define("createKeyboardEvent", KeyboardEvent);
 		this.define("toInternalUrl", helpers.toInternalUri);
+		this.define("commands", this.#createCommandApi());
 	}
 
 	/**
@@ -663,5 +671,63 @@ export default class Acode {
 	 */
 	unregisterFileHandler(id) {
 		fileTypeHandler.unregisterFileHandler(id);
+	}
+
+	addCommand(descriptor) {
+		const command = registerExternalCommand(descriptor);
+		this.#refreshCommandBindings();
+		return command;
+	}
+
+	removeCommand(name) {
+		if (!name) return;
+		removeExternalCommand(name);
+		this.#refreshCommandBindings();
+	}
+
+	execCommand(name, view) {
+		if (!name) return false;
+		const targetView = view || window.editorManager?.editor;
+		return runCommand(name, targetView);
+	}
+
+	listCommands() {
+		return listRegisteredCommands();
+	}
+
+	#refreshCommandBindings() {
+		const view = window.editorManager?.editor;
+		if (view) refreshCommandKeymap(view);
+	}
+
+	#createCommandApi() {
+		const commandRegistry = {
+			add: this.addCommand,
+			execute: this.execCommand,
+			remove: this.removeCommand,
+			list: this.listCommands,
+		};
+
+		const addCommand = (descriptor) => {
+			try {
+				return this.addCommand(descriptor);
+			} catch (error) {
+				console.error("Failed to add command", descriptor?.name);
+				throw error;
+			}
+		};
+
+		const removeCommand = (name) => {
+			if (!name) return;
+			this.removeCommand(name);
+		};
+
+		return {
+			addCommand,
+			removeCommand,
+			get registry() {
+				return commandRegistry;
+			},
+		};
 	}
 }

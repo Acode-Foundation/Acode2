@@ -14,7 +14,6 @@ import "components/WebComponents";
 import fsOperation from "fileSystem";
 import sidebarApps from "sidebarApps";
 import ajax from "@deadlyjack/ajax";
-import { setKeyBindings } from "ace/commands";
 import Contextmenu from "components/contextmenu";
 import Sidebar from "components/sidebar";
 import tile from "components/tile";
@@ -50,6 +49,7 @@ import loadPolyFill from "utils/polyfill";
 import Url from "utils/Url";
 import $_fileMenu from "views/file-menu.hbs";
 import $_menu from "views/menu.hbs";
+import { setKeyBindings } from "./codemirror/commandRegistry";
 import { initModes } from "./codemirror/modelist";
 import auth, { loginEvents } from "./lib/auth";
 
