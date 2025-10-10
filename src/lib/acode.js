@@ -8,6 +8,9 @@ import {
 	removeExternalCommand,
 	executeCommand as runCommand,
 } from "cm/commandRegistry";
+import lspClientManager from "cm/lsp/clientManager";
+import { registerLspFormatter } from "cm/lsp/formatter";
+import serverRegistry from "cm/lsp/serverRegistry";
 import { addMode, getModeForPath, removeMode } from "cm/modelist";
 import cmThemeRegistry from "cm/themes";
 import Contextmenu from "components/contextmenu";
@@ -94,6 +97,21 @@ export default class Acode {
 			remove: sidebarApps.remove,
 		};
 
+		const lspModule = {
+			registerServer: (definition, options) =>
+				serverRegistry.registerServer(definition, options),
+			unregisterServer: (id) => serverRegistry.unregisterServer(id),
+			updateServer: (id, updater) => serverRegistry.updateServer(id, updater),
+			getServer: (id) => serverRegistry.getServer(id),
+			listServers: () => serverRegistry.listServers(),
+			getServersForLanguage: (languageId, options) =>
+				serverRegistry.getServersForLanguage(languageId, options),
+			clientManager: {
+				setOptions: (options) => lspClientManager.setOptions(options),
+				getActiveClients: () => lspClientManager.getActiveClients(),
+			},
+		};
+
 		const aceModes = {
 			addMode,
 			removeMode,
@@ -157,6 +175,7 @@ export default class Acode {
 		this.define("themes", themesModule);
 		this.define("editorLanguages", editorLanguages);
 		this.define("editorThemes", editorThemesModule);
+		this.define("lsp", lspModule);
 		this.define("settings", appSettings);
 		this.define("sideButton", SideButton);
 		this.define("EditorFile", EditorFile);
@@ -179,6 +198,8 @@ export default class Acode {
 		this.define("createKeyboardEvent", KeyboardEvent);
 		this.define("toInternalUrl", helpers.toInternalUri);
 		this.define("commands", this.#createCommandApi());
+
+		registerLspFormatter(this);
 	}
 
 	/**

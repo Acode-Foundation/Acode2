@@ -33,6 +33,10 @@ import {
 	wrapWithAbbreviation,
 } from "@emmetio/codemirror6-plugin";
 import createBaseExtensions from "cm/baseExtensions";
+import lspClientManager from "cm/lsp/clientManager";
+import lspDiagnosticsExtension from "cm/lsp/diagnostics";
+import { stopManagedServer } from "cm/lsp/serverLauncher";
+import serverRegistry from "cm/lsp/serverRegistry";
 // CodeMirror mode management
 import {
 	getModeForPath,
@@ -57,8 +61,11 @@ import ScrollBar from "components/scrollbar";
 import SideButton, { sideButtonContainer } from "components/sideButton";
 import keyboardHandler, { keydownState } from "handlers/keyboard";
 import actions from "handlers/quickTools";
+import Url from "utils/Url";
 // TODO: Update EditorFile for CodeMirror compatibility
 import EditorFile from "./editorFile";
+import openFile from "./openFile";
+import { addedFolder } from "./openFolder";
 import appSettings from "./settings";
 import {
 	getSystemConfiguration,
@@ -154,6 +161,11 @@ async function EditorManager($header, $body) {
 	const readOnlyCompartment = new Compartment();
 	// Compartment for language mode (allows async loading/reconfigure)
 	const languageCompartment = new Compartment();
+	// Compartment for LSP extensions so we can swap per file
+	const lspCompartment = new Compartment();
+	let lspRequestToken = 0;
+	let lastLspUri = null;
+	const UNTITLED_URI_PREFIX = "untitled://acode/";
 
 	function getEditorFontFamily() {
 		const font = appSettings?.value?.editorFont || "Roboto Mono";
@@ -177,6 +189,20 @@ async function EditorManager($header, $body) {
 	function makeLineNumberExtension() {
 		const { linenumbers = true, relativeLineNumbers = false } =
 			appSettings?.value || {};
+		const baseTheme = EditorView.theme({
+			".cm-gutters": {
+				padding: "0 4px 0 0",
+				borderRight: "none",
+				backgroundColor: "transparent",
+			},
+			".cm-lineNumbers .cm-gutterElement": {
+				padding: "0 6px 0 2px",
+			},
+			".cm-foldGutter .cm-gutterElement": {
+				padding: "0 2px",
+				margin: 0,
+			},
+		});
 		if (!linenumbers)
 			return EditorView.theme({
 				".cm-gutter": {
@@ -187,7 +213,7 @@ async function EditorManager($header, $body) {
 				},
 			});
 		if (!relativeLineNumbers)
-			return [lineNumbers(), highlightActiveLineGutter()];
+			return [lineNumbers(), highlightActiveLineGutter(), baseTheme];
 		return [
 			lineNumbers({
 				formatNumber: (lineNo, state) => {
@@ -201,6 +227,7 @@ async function EditorManager($header, $body) {
 				},
 			}),
 			highlightActiveLineGutter(),
+			baseTheme,
 		];
 	}
 
@@ -367,6 +394,68 @@ async function EditorManager($header, $body) {
 		}
 	}
 
+	function buildLspMetadata(file) {
+		if (!file || file.type !== "editor") return null;
+		const uri = getFileLspUri(file);
+		if (!uri) return null;
+		const languageId = getFileLanguageId(file);
+		return {
+			uri,
+			languageId,
+			languageName: file.currentMode || file.mode || languageId,
+			view: editor,
+			file,
+			rootUri: resolveRootUriForContext({ uri, file }),
+		};
+	}
+
+	async function configureLspForFile(file) {
+		const metadata = buildLspMetadata(file);
+		const token = ++lspRequestToken;
+		if (!metadata) {
+			detachActiveLsp();
+			editor.dispatch({ effects: lspCompartment.reconfigure([]) });
+			return;
+		}
+		if (metadata.uri !== lastLspUri) {
+			detachActiveLsp();
+		}
+		try {
+			const extensions =
+				(await lspClientManager.getExtensionsForFile(metadata)) || [];
+			if (token !== lspRequestToken) return;
+			if (!extensions.length) {
+				lastLspUri = null;
+				editor.dispatch({ effects: lspCompartment.reconfigure([]) });
+				return;
+			}
+			lastLspUri = metadata.uri;
+			editor.dispatch({
+				effects: lspCompartment.reconfigure(extensions),
+			});
+		} catch (error) {
+			if (token !== lspRequestToken) return;
+			console.error("Failed to configure LSP", error);
+			lastLspUri = null;
+			editor.dispatch({ effects: lspCompartment.reconfigure([]) });
+		}
+	}
+
+	function detachLspForFile(file) {
+		if (!file || file.type !== "editor") return;
+		const uri = getFileLspUri(file);
+		if (!uri) return;
+		try {
+			lspClientManager.detach(uri);
+		} catch (error) {
+			console.warn(`Failed to detach LSP client for ${uri}`, error);
+		}
+		if (uri === lastLspUri && manager.activeFile?.id === file.id) {
+			lastLspUri = null;
+			editor.dispatch({ effects: lspCompartment.reconfigure([]) });
+		}
+	}
+
 	// Plugin already wires CSS completions; attach extras for related syntaxes.
 	const emmetCompletionSyntaxes = new Set([
 		EmmetKnownSyntax.scss,
@@ -384,6 +473,141 @@ async function EditorManager($header, $body) {
 					{ autocomplete: emmetCompletionSource },
 				]),
 			);
+		}
+	}
+
+	function getFileLspUri(file) {
+		if (!file) return null;
+		if (file.uri) return file.uri;
+		return `${UNTITLED_URI_PREFIX}${file.id}`;
+	}
+
+	function getFileLanguageId(file) {
+		if (!file) return "plaintext";
+		const mode = file.currentMode || file.mode;
+		if (mode) return String(mode).toLowerCase();
+		try {
+			const guess = getModeForPath(file.filename || file.name || "");
+			if (guess?.name) return String(guess.name).toLowerCase();
+		} catch (_) {}
+		return "plaintext";
+	}
+
+	function resolveRootUriForContext(context = {}) {
+		const uri = context.uri || context.file?.uri;
+		if (!uri) return null;
+		for (const folder of addedFolder) {
+			try {
+				const base = folder?.url;
+				if (!base) continue;
+				if (uri.startsWith(base)) return base;
+			} catch (_) {}
+		}
+		if (uri.includes("::")) {
+			return uri.split("::")[0];
+		}
+		try {
+			return Url.dirname(uri);
+		} catch (_) {
+			return null;
+		}
+	}
+
+	function detachActiveLsp() {
+		if (!lastLspUri) return;
+		try {
+			lspClientManager.detach(lastLspUri, editor);
+		} catch (error) {
+			console.warn(`Failed to detach LSP session for ${lastLspUri}`, error);
+		}
+		lastLspUri = null;
+	}
+
+	function applyLspSettings() {
+		const { lsp } = appSettings.value || {};
+		if (!lsp) return;
+		const overrides = lsp.servers || {};
+		for (const [id, config] of Object.entries(overrides)) {
+			if (!config || typeof config !== "object") continue;
+			const key = String(id || "")
+				.trim()
+				.toLowerCase();
+			if (!key) continue;
+			const existing = serverRegistry.getServer(key);
+			if (existing) {
+				serverRegistry.updateServer(key, (current) => {
+					const next = { ...current };
+					if (Array.isArray(config.languages) && config.languages.length) {
+						next.languages = config.languages.map((lang) =>
+							String(lang).toLowerCase(),
+						);
+					}
+					if (config.transport && typeof config.transport === "object") {
+						next.transport = { ...current.transport, ...config.transport };
+						delete next.transport.protocols;
+					}
+					if (config.clientConfig && typeof config.clientConfig === "object") {
+						next.clientConfig = {
+							...current.clientConfig,
+							...config.clientConfig,
+						};
+					}
+					if (
+						config.initializationOptions &&
+						typeof config.initializationOptions === "object"
+					) {
+						next.initializationOptions = {
+							...current.initializationOptions,
+							...config.initializationOptions,
+						};
+					}
+					if (config.launcher && typeof config.launcher === "object") {
+						next.launcher = { ...current.launcher, ...config.launcher };
+					}
+					if (Object.prototype.hasOwnProperty.call(config, "enabled")) {
+						next.enabled = !!config.enabled;
+					}
+					return next;
+				});
+				if (config.enabled === false) {
+					stopManagedServer(key);
+				}
+			} else if (
+				Array.isArray(config.languages) &&
+				config.languages.length &&
+				config.transport &&
+				typeof config.transport === "object"
+			) {
+				try {
+					serverRegistry.registerServer({
+						id: key,
+						label: config.label || key,
+						languages: config.languages,
+						transport: config.transport,
+						clientConfig: config.clientConfig,
+						initializationOptions: config.initializationOptions,
+						launcher: config.launcher,
+						enabled: config.enabled !== false,
+					});
+					serverRegistry.updateServer(key, (current) => {
+						if (current.transport?.protocols) {
+							const updated = { ...current };
+							updated.transport = { ...current.transport };
+							delete updated.transport.protocols;
+							return updated;
+						}
+						return current;
+					});
+					if (config.enabled === false) {
+						stopManagedServer(key);
+					}
+				} catch (error) {
+					console.warn(
+						`Failed to register LSP server override for ${key}`,
+						error,
+					);
+				}
+			}
 		}
 	}
 
@@ -737,6 +961,7 @@ async function EditorManager($header, $body) {
 
 		// Keep file.session in sync and handle caching/autosave
 		exts.push(getDocSyncListener());
+		exts.push(lspCompartment.of([]));
 
 		// Preserve previous state for restoring selection/folds after swap
 		const prevState = file.session || null;
@@ -777,6 +1002,8 @@ async function EditorManager($header, $body) {
 		) {
 			setScrollPosition(editor, file.lastScrollTop, file.lastScrollLeft);
 		}
+
+		void configureLspForFile(file);
 	}
 
 	function getEmmetSyntaxForFile(file) {
@@ -843,6 +1070,7 @@ async function EditorManager($header, $body) {
 		getEditorWidth,
 		header: $header,
 		container: $container,
+		getLspMetadata: buildLspMetadata,
 		get isScrolling() {
 			return isScrolling;
 		},
@@ -882,6 +1110,34 @@ async function EditorManager($header, $body) {
 			}
 		},
 	};
+
+	lspClientManager.setOptions({
+		resolveRoot: resolveRootUriForContext,
+		onClientIdle: ({ server }) => {
+			if (server?.id) stopManagedServer(server.id);
+		},
+		displayFile: async (targetUri) => {
+			if (!targetUri) return null;
+			const existing = manager.getFile(targetUri, "uri");
+			if (existing?.type === "editor") {
+				existing.makeActive();
+				return editor;
+			}
+			try {
+				await openFile(targetUri, { render: true });
+				const opened = manager.getFile(targetUri, "uri");
+				if (opened?.type === "editor") {
+					opened.makeActive();
+					return editor;
+				}
+			} catch (error) {
+				console.error("Failed to open file for LSP navigation", error);
+			}
+			return null;
+		},
+		clientExtensions: [lspDiagnosticsExtension()],
+	});
+	applyLspSettings();
 
 	// TODO: Implement mode/language support for CodeMirror
 	// editor.setSession(ace.createEditSession("", "ace/mode/text"));
@@ -949,6 +1205,18 @@ async function EditorManager($header, $body) {
 	// Font family update for CodeMirror
 	appSettings.on("update:editorFont", function () {
 		updateEditorStyleFromSettings();
+	});
+
+	appSettings.on("update:lsp", async function () {
+		applyLspSettings();
+		const active = manager.activeFile;
+		if (active?.type === "editor") {
+			void configureLspForFile(active);
+		} else {
+			detachActiveLsp();
+			editor.dispatch({ effects: lspCompartment.reconfigure([]) });
+			await lspClientManager.dispose();
+		}
 	});
 
 	appSettings.on("update:openFileListPos", function (value) {
@@ -1083,6 +1351,17 @@ async function EditorManager($header, $body) {
 		} catch (_) {
 			// Fallback: full re-apply
 			applyFileToEditor(file);
+		}
+	});
+
+	manager.on(["remove-file"], (file) => {
+		detachLspForFile(file);
+	});
+
+	manager.on(["rename-file"], (file) => {
+		if (file?.type !== "editor") return;
+		if (manager.activeFile?.id === file.id) {
+			void configureLspForFile(file);
 		}
 	});
 

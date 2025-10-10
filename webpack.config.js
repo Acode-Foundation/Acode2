@@ -39,7 +39,7 @@ module.exports = (env, options) => {
   // if (mode === 'production') {
   rules.push({
     test: /\.m?js$/,
-    exclude: /node_modules\/(@codemirror|codemirror)/, // Exclude CodeMirror files from html-tag-js loader
+    exclude: /node_modules\/(@codemirror|codemirror|marked)/, // Exclude CodeMirror and marked files from html-tag-js loader
     use: [
       'html-tag-js/jsx/tag-loader.js',
       {

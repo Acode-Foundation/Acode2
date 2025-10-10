@@ -179,6 +179,9 @@ class Settings {
 			showAnnotations: false,
 			rainbowBrackets: true,
 			pluginsDisabled: {}, // pluginId: true/false
+			lsp: {
+				servers: {},
+			},
 		};
 		this.value = structuredClone(this.#defaultSettings);
 	}
