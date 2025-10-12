@@ -189,20 +189,6 @@ async function EditorManager($header, $body) {
 	function makeLineNumberExtension() {
 		const { linenumbers = true, relativeLineNumbers = false } =
 			appSettings?.value || {};
-		const baseTheme = EditorView.theme({
-			".cm-gutters": {
-				padding: "0 4px 0 0",
-				borderRight: "none",
-				backgroundColor: "transparent",
-			},
-			".cm-lineNumbers .cm-gutterElement": {
-				padding: "0 6px 0 2px",
-			},
-			".cm-foldGutter .cm-gutterElement": {
-				padding: "0 2px",
-				margin: 0,
-			},
-		});
 		if (!linenumbers)
 			return EditorView.theme({
 				".cm-gutter": {
@@ -213,8 +199,8 @@ async function EditorManager($header, $body) {
 				},
 			});
 		if (!relativeLineNumbers)
-			return [lineNumbers(), highlightActiveLineGutter(), baseTheme];
-		return [
+			return Prec.highest([lineNumbers(), highlightActiveLineGutter()]);
+		return Prec.highest([
 			lineNumbers({
 				formatNumber: (lineNo, state) => {
 					try {
@@ -227,8 +213,7 @@ async function EditorManager($header, $body) {
 				},
 			}),
 			highlightActiveLineGutter(),
-			baseTheme,
-		];
+		]);
 	}
 
 	function makeIndentExtensions() {
@@ -243,6 +228,13 @@ async function EditorManager($header, $body) {
 	// Centralised CodeMirror options registry for organized configuration
 	// Each spec declares related settings keys, its compartment(s), and a builder returning extension(s)
 	const cmOptionSpecs = [
+		{
+			keys: ["linenumbers", "relativeLineNumbers"],
+			compartments: [lineNumberCompartment],
+			build() {
+				return makeLineNumberExtension();
+			},
+		},
 		{
 			keys: ["rainbowBrackets"],
 			compartments: [rainbowCompartment],
@@ -272,13 +264,6 @@ async function EditorManager($header, $body) {
 			build() {
 				const { indentExt, tabSizeExt } = makeIndentExtensions();
 				return [indentExt, tabSizeExt];
-			},
-		},
-		{
-			keys: ["linenumbers", "relativeLineNumbers"],
-			compartments: [lineNumberCompartment],
-			build() {
-				return makeLineNumberExtension();
 			},
 		},
 		{

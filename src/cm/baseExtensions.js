@@ -14,6 +14,7 @@ import {
 	drawSelection,
 	dropCursor,
 	highlightActiveLine,
+	highlightActiveLineGutter,
 	highlightSpecialChars,
 	keymap,
 	rectangularSelection,
@@ -25,8 +26,10 @@ import {
  */
 export default function createBaseExtensions() {
 	return [
+		highlightActiveLineGutter(),
 		highlightSpecialChars(),
 		history(),
+		foldGutter(),
 		drawSelection(),
 		dropCursor(),
 		EditorState.allowMultipleSelections.of(true),
@@ -38,7 +41,6 @@ export default function createBaseExtensions() {
 		crosshairCursor(),
 		highlightActiveLine(),
 		highlightSelectionMatches(),
-		foldGutter(),
 		keymap.of([...defaultKeymap, ...historyKeymap]),
 	];
 }
