@@ -276,8 +276,7 @@ function registerBuiltinServers() {
 					command: "typescript-language-server",
 					args: ["--stdio"],
 				},
-				checkCommand:
-					'if [ -x "$PREFIX/new_axs" ]; then which typescript-language-server; else exit 1; fi',
+				checkCommand: "which typescript-language-server",
 				install: {
 					command:
 						"apk add --no-cache nodejs npm && npm install -g typescript-language-server typescript",
@@ -330,8 +329,7 @@ function registerBuiltinServers() {
 					command: "vscode-html-language-server",
 					args: ["--stdio"],
 				},
-				checkCommand:
-					'if [ -x "$PREFIX/new_axs" ]; then which vscode-html-language-server; else exit 1; fi',
+				checkCommand: "which vscode-html-language-server",
 				install: {
 					command:
 						"apk add --no-cache nodejs npm && npm install -g vscode-langservers-extracted",
@@ -355,8 +353,7 @@ function registerBuiltinServers() {
 					command: "vscode-css-language-server",
 					args: ["--stdio"],
 				},
-				checkCommand:
-					'if [ -x "$PREFIX/new_axs" ]; then which vscode-css-language-server; else exit 1; fi',
+				checkCommand: "which vscode-css-language-server",
 				install: {
 					command:
 						"apk add --no-cache nodejs npm && npm install -g vscode-langservers-extracted",
@@ -373,43 +370,18 @@ function registerBuiltinServers() {
 				kind: "websocket",
 				url: "ws://127.0.0.1:2093",
 			},
-				launcher: {
-					bridge: {
-						kind: "axs",
-						port: 2093,
-						command: "vscode-json-language-server",
-						args: ["--stdio"],
-					},
-					checkCommand:
-						'if [ -x "$PREFIX/new_axs" ]; then which vscode-json-language-server; else exit 1; fi',
-					install: {
-						command:
-							"apk add --no-cache nodejs npm && npm install -g vscode-langservers-extracted",
-						prompt: "Install JSON language server dependencies?",
-					},
-				},
-			enabled: false,
-		},
-		{
-			id: "rust-analyzer",
-			label: "Rust",
-			languages: ["rust"],
-			transport: {
-				kind: "websocket",
-				url: "ws://127.0.0.1:2094",
-			},
 			launcher: {
 				bridge: {
 					kind: "axs",
-					port: 2094,
-					command: "rust-analyzer",
+					port: 2093,
+					command: "vscode-json-language-server",
 					args: ["--stdio"],
 				},
-				checkCommand:
-					'if [ -x "$PREFIX/new_axs" ]; then which rust-analyzer; else exit 1; fi',
+				checkCommand: "which vscode-json-language-server",
 				install: {
-					command: "apk add --no-cache rust-analyzer",
-					prompt: "Install rust-analyzer language server?",
+					command:
+						"apk add --no-cache nodejs npm && npm install -g vscode-langservers-extracted",
+					prompt: "Install JSON language server dependencies?",
 				},
 			},
 			enabled: false,

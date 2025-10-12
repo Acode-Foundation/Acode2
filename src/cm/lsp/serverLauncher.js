@@ -10,7 +10,7 @@ const STATUS_PRESENT = "present";
 const STATUS_DECLINED = "declined";
 const STATUS_FAILED = "failed";
 
-const AXS_BINARY = "$PREFIX/new_axs";
+const AXS_BINARY = "$PREFIX/axs";
 
 function getExecutor() {
 	const executor = globalThis.Executor;
