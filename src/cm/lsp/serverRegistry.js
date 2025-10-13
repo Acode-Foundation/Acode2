@@ -315,6 +315,28 @@ function registerBuiltinServers() {
 			enabled: false,
 		},
 		{
+			id: "clangd",
+			label: "C / C++ (clangd)",
+			languages: ["c", "cpp"],
+			transport: {
+				kind: "websocket",
+				url: "ws://127.0.0.1:2094",
+			},
+			launcher: {
+				bridge: {
+					kind: "axs",
+					port: 2094,
+					command: "clangd",
+				},
+				checkCommand: "which clangd",
+				install: {
+					command: "apk add --no-cache clang-extra-tools",
+					prompt: "clangd is not installed. Install it now?",
+				},
+			},
+			enabled: false,
+		},
+		{
 			id: "html",
 			label: "HTML",
 			languages: ["html", "vue", "svelte"],
