@@ -427,6 +427,9 @@
 	"overview": "Áttekintés",
 	"contributors": "Közreműködők",
 	"quicktools:hyphen": "Kötőjel beszúrása",
-	"check for app updates": "Check for app updates",
-	"prompt update check consent message": "Acode can check for new app updates when you're online. Enable update checks?"
+	"check for app updates": "Alkalmazásfrissítések ellenőrzése",
+	"prompt update check consent message": "Internetkapcsolat esetén az Acode ellenőrizheti az új alkalmazásfrissítéseket. Engedélyezi a frissítések ellenőrzését?",
+	"keywords": "Kulcsszavak",
+	"author": "Szerző",
+	"filtered by": "Szűrési szempont"
 }
