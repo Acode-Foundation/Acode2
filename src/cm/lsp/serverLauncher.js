@@ -108,9 +108,16 @@ async function ensureInstalled(server) {
 		}
 
 		const install = launcher.install;
+		const displayLabel = (
+			server.label ||
+			server.id ||
+			"Language server"
+		).trim();
+		const promptMessage =
+			strings?.confirm || `Install ${displayLabel} language server?`;
 		const shouldInstall = await confirm(
-			server.label,
-			install.prompt || strings?.confirm || "Install language server?",
+			server.label || displayLabel,
+			promptMessage,
 		);
 
 		if (!shouldInstall) {

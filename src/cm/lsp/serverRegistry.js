@@ -165,7 +165,6 @@ function sanitizeDefinition(definition) {
 							typeof definition.launcher.install === "object"
 								? {
 										command: definition.launcher.install.command,
-										prompt: definition.launcher.install.prompt,
 									}
 								: undefined,
 						bridge: sanitizeBridge(id, definition.launcher.bridge),
@@ -280,7 +279,6 @@ function registerBuiltinServers() {
 				install: {
 					command:
 						"apk add --no-cache nodejs npm && npm install -g typescript-language-server typescript",
-					prompt: "Install TypeScript language server dependencies?",
 				},
 			},
 			enabled: false,
@@ -300,7 +298,6 @@ function registerBuiltinServers() {
 				install: {
 					command:
 						"apk update && apk upgrade && apk add python3 py3-pip && PIP_BREAK_SYSTEM_PACKAGES=1 pip install 'python-lsp-server[websockets,all]'",
-					prompt: "python-lsp-server is not installed. Install it now?",
 				},
 			},
 			initializationOptions: {
@@ -331,7 +328,6 @@ function registerBuiltinServers() {
 				checkCommand: "which clangd",
 				install: {
 					command: "apk add --no-cache clang-extra-tools",
-					prompt: "clangd is not installed. Install it now?",
 				},
 			},
 			enabled: false,
@@ -355,7 +351,6 @@ function registerBuiltinServers() {
 				install: {
 					command:
 						"apk add --no-cache nodejs npm && npm install -g vscode-langservers-extracted",
-					prompt: "Install HTML language server dependencies?",
 				},
 			},
 			enabled: false,
@@ -379,7 +374,6 @@ function registerBuiltinServers() {
 				install: {
 					command:
 						"apk add --no-cache nodejs npm && npm install -g vscode-langservers-extracted",
-					prompt: "Install CSS language server dependencies?",
 				},
 			},
 			enabled: false,
@@ -403,7 +397,6 @@ function registerBuiltinServers() {
 				install: {
 					command:
 						"apk add --no-cache nodejs npm && npm install -g vscode-langservers-extracted",
-					prompt: "Install JSON language server dependencies?",
 				},
 			},
 			enabled: false,
