@@ -166,8 +166,19 @@ export class LspClientManager {
 
 		const extraExtensions = asArray(this.options.clientExtensions);
 		const serverExtensions = asArray(clientConfig.extensions);
+		const builtinExtensions = languageServerExtensions();
+		const wantsCustomDiagnostics = [
+			...extraExtensions,
+			...serverExtensions,
+		].some(
+			(ext) => !!ext?.clientCapabilities?.textDocument?.publishDiagnostics,
+		);
 		const mergedExtensions = [
-			...languageServerExtensions(),
+			...(wantsCustomDiagnostics
+				? builtinExtensions.filter(
+						(ext) => !ext?.clientCapabilities?.textDocument?.publishDiagnostics,
+					)
+				: builtinExtensions),
 			...extraExtensions,
 			...serverExtensions,
 		];
