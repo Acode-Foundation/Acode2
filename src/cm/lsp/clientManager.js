@@ -1,3 +1,4 @@
+import { getIndentUnit, indentUnit } from "@codemirror/language";
 import {
 	LSPClient,
 	LSPPlugin,
@@ -116,14 +117,18 @@ export class LspClientManager {
 				const state = await this.#ensureClient(server, context);
 				const capabilities = state.client.serverCapabilities;
 				if (!capabilities?.documentFormattingProvider) continue;
+				state.attach(uri, view);
 				const plugin = LSPPlugin.get(view);
 				if (!plugin) continue;
 				plugin.client.sync();
 				const edits = await state.client.request("textDocument/formatting", {
 					textDocument: { uri },
-					options,
+					options: buildFormattingOptions(view, options),
 				});
-				if (!edits || !edits.length) continue;
+				if (!edits || !edits.length) {
+					plugin.client.sync();
+					return true;
+				}
 				const applied = applyTextEdits(plugin, view, edits);
 				if (applied) {
 					plugin.client.sync();
@@ -371,6 +376,42 @@ function applyTextEdits(plugin, view, edits) {
 	changes.sort((a, b) => a.from - b.from || a.to - b.to);
 	view.dispatch({ changes });
 	return true;
+}
+
+function buildFormattingOptions(view, overrides = {}) {
+	const state = view?.state;
+	if (!state) return { ...overrides };
+
+	const unitValue = state.facet(indentUnit);
+	const unit =
+		typeof unitValue === "string" && unitValue.length
+			? unitValue
+			: String(unitValue || "\t");
+	let tabSize = getIndentUnit(state);
+	if (
+		typeof tabSize !== "number" ||
+		!Number.isFinite(tabSize) ||
+		tabSize <= 0
+	) {
+		tabSize = resolveIndentWidth(unit);
+	}
+	const insertSpaces = !unit.includes("\t");
+
+	return {
+		tabSize,
+		insertSpaces,
+		...overrides,
+	};
+}
+
+function resolveIndentWidth(unit) {
+	if (typeof unit !== "string" || !unit.length) return 4;
+	let width = 0;
+	for (const ch of unit) {
+		if (ch === "\t") return 4;
+		width += 1;
+	}
+	return width || 4;
 }
 
 const defaultManager = new LspClientManager();

@@ -1,3 +1,4 @@
+import { getModes } from "cm/modelist";
 import toast from "components/toast";
 import lspClientManager from "./clientManager";
 import serverRegistry from "./serverRegistry";
@@ -17,7 +18,9 @@ export function registerLspFormatter(acode) {
 			if (lang) languages.add(String(lang));
 		});
 	});
-	const extensions = languages.size ? Array.from(languages) : ["*"];
+	const extensions = languages.size
+		? collectFormatterExtensions(languages)
+		: ["*"];
 
 	acode.registerFormatter(
 		"lsp",
@@ -49,4 +52,42 @@ export function registerLspFormatter(acode) {
 		},
 		"Language Server",
 	);
+}
+
+function collectFormatterExtensions(languages) {
+	const extensions = new Set();
+	const modeMap = new Map();
+
+	try {
+		getModes().forEach((mode) => {
+			const key = String(mode?.name || "")
+				.trim()
+				.toLowerCase();
+			if (key) modeMap.set(key, mode);
+		});
+	} catch (_) {}
+
+	languages.forEach((language) => {
+		const key = String(language || "")
+			.trim()
+			.toLowerCase();
+		if (!key) return;
+		extensions.add(key);
+		const mode = modeMap.get(key);
+		if (!mode?.extensions) return;
+		String(mode.extensions)
+			.split("|")
+			.forEach((part) => {
+				const ext = part.trim();
+				if (ext && !ext.startsWith("^")) {
+					extensions.add(ext);
+				}
+			});
+	});
+
+	if (!extensions.size) {
+		return ["*"];
+	}
+
+	return Array.from(extensions);
 }
