@@ -336,18 +336,21 @@ async function EditorManager($header, $body) {
 	}
 
 	function createEmmetExtensionSet({
-		syntax = EmmetKnownSyntax.html,
+		syntax,
 		tracker = {},
 		config: emmetOverrides = {},
 	} = {}) {
+		const resolvedSyntax =
+			syntax === undefined ? EmmetKnownSyntax.html : syntax;
+		if (!resolvedSyntax) return [];
 		const trackerExtension = abbreviationTracker({
-			syntax,
+			syntax: resolvedSyntax,
 			...tracker,
 		});
 		const { autocompleteTab = ["markup", "stylesheet"], ...restOverrides } =
 			emmetOverrides || {};
 		const emmetConfigExtension = emmetConfig.of({
-			syntax,
+			syntax: resolvedSyntax,
 			autocompleteTab,
 			...restOverrides,
 		});
@@ -1022,10 +1025,14 @@ async function EditorManager($header, $body) {
 		if (ext === "slim" || mode.includes("slim")) return EmmetKnownSyntax.slim;
 		if (ext === "vue" || mode.includes("vue")) return EmmetKnownSyntax.vue;
 		if (ext === "php" || mode.includes("php")) return EmmetKnownSyntax.html;
-		if (ext === "html" || ext === "xhtml" || mode.includes("html"))
+		if (
+			ext === "htm" ||
+			ext === "html" ||
+			ext === "xhtml" ||
+			mode.includes("html")
+		)
 			return EmmetKnownSyntax.html;
-		// Defaults to html per Emmet docs
-		return EmmetKnownSyntax.html;
+		return null;
 	}
 
 	const $vScrollbar = ScrollBar({
