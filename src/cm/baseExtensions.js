@@ -1,4 +1,4 @@
-import { closeBrackets } from "@codemirror/autocomplete";
+import { closeBrackets, completionKeymap } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import {
 	bracketMatching,
@@ -41,6 +41,6 @@ export default function createBaseExtensions() {
 		crosshairCursor(),
 		highlightActiveLine(),
 		highlightSelectionMatches(),
-		keymap.of([...defaultKeymap, ...historyKeymap]),
+		keymap.of([...completionKeymap, ...defaultKeymap, ...historyKeymap]),
 	];
 }
