@@ -67,8 +67,14 @@ function mapDiagnostics(plugin, state) {
 	const mapped = [];
 
 	for (const diagnostic of stored) {
-		const from = changes.mapPos(diagnostic.from, 1, MapMode.TrackDel);
-		const to = changes.mapPos(diagnostic.to, -1, MapMode.TrackDel);
+		let from;
+		let to;
+		try {
+			from = changes.mapPos(diagnostic.from, 1, MapMode.TrackDel);
+			to = changes.mapPos(diagnostic.to, -1, MapMode.TrackDel);
+		} catch (_) {
+			continue;
+		}
 		if (from != null && to != null) {
 			mapped.push({ ...diagnostic, from, to });
 		}
