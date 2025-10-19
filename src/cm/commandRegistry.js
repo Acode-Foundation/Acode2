@@ -54,6 +54,26 @@ import {
 	undo,
 } from "@codemirror/commands";
 import { indentUnit as indentUnitFacet } from "@codemirror/language";
+import {
+	closeLintPanel,
+	nextDiagnostic,
+	openLintPanel,
+	previousDiagnostic,
+} from "@codemirror/lint";
+import {
+	LSPPlugin,
+	closeReferencePanel as lspCloseReferencePanel,
+	findReferences as lspFindReferences,
+	formatDocument as lspFormatDocument,
+	jumpToDeclaration as lspJumpToDeclaration,
+	jumpToDefinition as lspJumpToDefinition,
+	jumpToImplementation as lspJumpToImplementation,
+	jumpToTypeDefinition as lspJumpToTypeDefinition,
+	nextSignature as lspNextSignature,
+	prevSignature as lspPrevSignature,
+	renameSymbol as lspRenameSymbol,
+	showSignatureHelp as lspShowSignatureHelp,
+} from "@codemirror/lsp-client";
 import { Compartment, EditorSelection } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import prompt from "dialogs/prompt";
@@ -132,6 +152,8 @@ const CODEMIRROR_COMMAND_MAP = new Map(
 );
 
 registerCoreCommands();
+registerLspCommands();
+registerLintCommands();
 registerCommandsFromKeyBindings();
 rebuildKeymap();
 
@@ -834,6 +856,137 @@ function registerCoreCommands() {
 	});
 }
 
+function registerLspCommands() {
+	addCommand({
+		name: "formatDocument",
+		description: "Format document (Language Server)",
+		readOnly: false,
+		requiresView: true,
+		run: runLspCommand(lspFormatDocument),
+	});
+	addCommand({
+		name: "renameSymbol",
+		description: "Rename symbol (Language Server)",
+		readOnly: false,
+		requiresView: true,
+		run: runLspCommand(lspRenameSymbol),
+	});
+	addCommand({
+		name: "showSignatureHelp",
+		description: "Show signature help",
+		readOnly: true,
+		requiresView: true,
+		run: runLspCommand(lspShowSignatureHelp),
+	});
+	addCommand({
+		name: "nextSignature",
+		description: "Next signature",
+		readOnly: true,
+		requiresView: true,
+		run: runLspCommand(lspNextSignature, { silentOnMissing: true }),
+	});
+	addCommand({
+		name: "prevSignature",
+		description: "Previous signature",
+		readOnly: true,
+		requiresView: true,
+		run: runLspCommand(lspPrevSignature, { silentOnMissing: true }),
+	});
+	addCommand({
+		name: "jumpToDefinition",
+		description: "Go to definition (Language Server)",
+		readOnly: true,
+		requiresView: true,
+		run: runLspCommand(lspJumpToDefinition),
+	});
+	addCommand({
+		name: "jumpToDeclaration",
+		description: "Go to declaration (Language Server)",
+		readOnly: true,
+		requiresView: true,
+		run: runLspCommand(lspJumpToDeclaration),
+	});
+	addCommand({
+		name: "jumpToTypeDefinition",
+		description: "Go to type definition (Language Server)",
+		readOnly: true,
+		requiresView: true,
+		run: runLspCommand(lspJumpToTypeDefinition),
+	});
+	addCommand({
+		name: "jumpToImplementation",
+		description: "Go to implementation (Language Server)",
+		readOnly: true,
+		requiresView: true,
+		run: runLspCommand(lspJumpToImplementation),
+	});
+	addCommand({
+		name: "findReferences",
+		description: "Find references (Language Server)",
+		readOnly: true,
+		requiresView: true,
+		run: runLspCommand(lspFindReferences),
+	});
+	addCommand({
+		name: "closeReferencePanel",
+		description: "Close references panel",
+		readOnly: true,
+		requiresView: true,
+		run(view) {
+			const resolvedView = resolveView(view);
+			if (!resolvedView) return false;
+			return lspCloseReferencePanel(resolvedView);
+		},
+	});
+}
+
+function registerLintCommands() {
+	addCommand({
+		name: "openLintPanel",
+		description: "Open lint panel",
+		readOnly: true,
+		requiresView: true,
+		run(view) {
+			const resolvedView = resolveView(view);
+			if (!resolvedView) return false;
+			return openLintPanel(resolvedView);
+		},
+	});
+	addCommand({
+		name: "closeLintPanel",
+		description: "Close lint panel",
+		readOnly: true,
+		requiresView: true,
+		run(view) {
+			const resolvedView = resolveView(view);
+			if (!resolvedView) return false;
+			return closeLintPanel(resolvedView);
+		},
+	});
+	addCommand({
+		name: "nextDiagnostic",
+		description: "Go to next diagnostic",
+		readOnly: true,
+		requiresView: true,
+		run(view) {
+			const resolvedView = resolveView(view);
+			if (!resolvedView) return false;
+			return nextDiagnostic(resolvedView);
+		},
+	});
+	addCommand({
+		name: "previousDiagnostic",
+		description: "Go to previous diagnostic",
+		readOnly: true,
+		requiresView: true,
+		run(view) {
+			const resolvedView = resolveView(view);
+			if (!resolvedView) return false;
+			return previousDiagnostic(resolvedView);
+		},
+	});
+}
+
 function registerCommandsFromKeyBindings() {
 	Object.entries(keyBindings).forEach(([name, binding]) => {
 		if (commandMap.has(name)) return;
@@ -892,6 +1045,26 @@ function addCommand(entry) {
 
 function resolveView(view) {
 	return view || editorManager?.editor || null;
+}
+
+function notifyLspUnavailable() {
+	toast?.("Language server not available");
+}
+
+function runLspCommand(commandFn, options = {}) {
+	return (view) => {
+		const resolvedView = resolveView(view);
+		if (!resolvedView) return false;
+		const plugin = LSPPlugin.get(resolvedView);
+		if (!plugin) {
+			if (!options?.silentOnMissing) {
+				notifyLspUnavailable();
+			}
+			return false;
+		}
+		const result = commandFn(resolvedView);
+		return result !== false;
+	};
 }
 
 function humanizeCommandName(name) {

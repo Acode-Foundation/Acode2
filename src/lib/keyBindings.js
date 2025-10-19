@@ -202,7 +202,7 @@ const APP_BINDING_CONFIG = [
 	{
 		name: "problems",
 		description: "Show problems",
-		key: "Ctrl-Shift-K",
+		key: null,
 		readOnly: true,
 		editorOnly: true,
 	},
