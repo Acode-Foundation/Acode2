@@ -113,8 +113,7 @@ async function ensureInstalled(server) {
 			server.id ||
 			"Language server"
 		).trim();
-		const promptMessage =
-			strings?.confirm || `Install ${displayLabel} language server?`;
+		const promptMessage = `Install ${displayLabel} language server?`;
 		const shouldInstall = await confirm(
 			server.label || displayLabel,
 			promptMessage,
