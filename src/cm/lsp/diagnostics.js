@@ -4,6 +4,31 @@ import { MapMode, StateEffect, StateField } from "@codemirror/state";
 
 const setPublishedDiagnostics = StateEffect.define();
 
+export const LSP_DIAGNOSTICS_EVENT = "acode:lsp-diagnostics-updated";
+
+function emitDiagnosticsUpdated() {
+	if (
+		typeof document === "undefined" ||
+		typeof document.dispatchEvent !== "function"
+	) {
+		return;
+	}
+
+	let event;
+	try {
+		event = new CustomEvent(LSP_DIAGNOSTICS_EVENT);
+	} catch (_) {
+		try {
+			event = document.createEvent("CustomEvent");
+			event.initCustomEvent(LSP_DIAGNOSTICS_EVENT, false, false, undefined);
+		} catch (_) {
+			return;
+		}
+	}
+
+	document.dispatchEvent(event);
+}
+
 const lspPublishedDiagnostics = StateField.define({
 	create() {
 		return [];
@@ -119,6 +144,7 @@ export function lspDiagnosticsExtension() {
 					effects: storeLspDiagnostics(plugin, params.diagnostics),
 				});
 				forceLinting(view);
+				emitDiagnosticsUpdated();
 				return true;
 			},
 		},
@@ -141,4 +167,15 @@ export default lspDiagnosticsExtension;
 
 export function clearDiagnosticsEffect() {
 	return setPublishedDiagnostics.of([]);
+}
+
+export function getLspDiagnostics(state) {
+	if (!state || typeof state.field !== "function") return [];
+	try {
+		const stored = state.field(lspPublishedDiagnostics, false);
+		if (!stored || !Array.isArray(stored)) return [];
+		return stored.map((diagnostic) => ({ ...diagnostic }));
+	} catch (_) {
+		return [];
+	}
 }

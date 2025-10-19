@@ -34,7 +34,10 @@ import {
 } from "@emmetio/codemirror6-plugin";
 import createBaseExtensions from "cm/baseExtensions";
 import lspClientManager from "cm/lsp/clientManager";
-import lspDiagnosticsExtension from "cm/lsp/diagnostics";
+import lspDiagnosticsExtension, {
+	getLspDiagnostics,
+	LSP_DIAGNOSTICS_EVENT,
+} from "cm/lsp/diagnostics";
 import { stopManagedServer } from "cm/lsp/serverLauncher";
 import serverRegistry from "cm/lsp/serverRegistry";
 // CodeMirror mode management
@@ -1103,6 +1106,29 @@ async function EditorManager($header, $body) {
 		},
 	};
 
+	if (typeof document !== "undefined") {
+		const globalTarget =
+			typeof globalThis !== "undefined" ? globalThis : document;
+		const diagnosticsListenerKey = "__acodeDiagnosticsListener";
+		const existing = globalTarget?.[diagnosticsListenerKey];
+		if (typeof existing === "function") {
+			document.removeEventListener(LSP_DIAGNOSTICS_EVENT, existing);
+		}
+		const listener = () => {
+			const active = manager.activeFile;
+			if (active?.type === "editor") {
+				try {
+					active.session = editor.state;
+				} catch (_) {}
+			}
+			toggleProblemButton();
+		};
+		document.addEventListener(LSP_DIAGNOSTICS_EVENT, listener);
+		if (globalTarget) {
+			globalTarget[diagnosticsListenerKey] = listener;
+		}
+	}
+
 	lspClientManager.setOptions({
 		resolveRoot: resolveRootUriForContext,
 		onClientIdle: ({ server }) => {
@@ -1268,6 +1294,7 @@ async function EditorManager($header, $body) {
 	appSettings.on("update:showSideButtons", function () {
 		updateMargin();
 		updateSideButtonContainer();
+		toggleProblemButton();
 	});
 
 	appSettings.on("update:showAnnotations", function () {
@@ -1311,6 +1338,7 @@ async function EditorManager($header, $body) {
 				events.emit("file-content-changed", file);
 				manager.onupdate("file-changed");
 				manager.emit("update", "file-changed");
+				toggleProblemButton();
 
 				const { autosave } = appSettings.value;
 				if (file.uri && changed && autosave) {
@@ -1348,6 +1376,7 @@ async function EditorManager($header, $body) {
 
 	manager.on(["remove-file"], (file) => {
 		detachLspForFile(file);
+		toggleProblemButton();
 	});
 
 	manager.on(["rename-file"], (file) => {
@@ -1375,6 +1404,7 @@ async function EditorManager($header, $body) {
 		manager.files.push(file);
 		manager.openFileList.append(file.tab);
 		$header.text = file.name;
+		toggleProblemButton();
 	}
 
 	/**
@@ -1512,6 +1542,7 @@ async function EditorManager($header, $body) {
 
 		updateMargin(true);
 		updateSideButtonContainer();
+		toggleProblemButton();
 		// TODO: Implement scroll margin for CodeMirror
 		// editor.renderer.setScrollMargin(
 		//	scrollMarginTop,
@@ -1738,18 +1769,48 @@ async function EditorManager($header, $body) {
 	/**
 	 * Toggles the visibility of the problem button based on the presence of annotations in the files.
 	 */
-	// TODO: Implement problem button toggle for CodeMirror
+	function fileHasProblems(file) {
+		const state = getDiagnosticStateForFile(file);
+		if (!state) return false;
+
+		const session = file.session;
+		if (session && typeof session.getAnnotations === "function") {
+			try {
+				const annotations = session.getAnnotations() || [];
+				if (annotations.length) return true;
+			} catch (_) {}
+		}
+
+		if (typeof state.field !== "function") return false;
+		try {
+			const diagnostics = getLspDiagnostics(state);
+			return diagnostics.length > 0;
+		} catch (_) {}
+
+		return false;
+	}
+
 	function toggleProblemButton() {
-		// const fileWithProblems = manager.files.find((file) => {
-		//	if (file.type !== "editor") return false;
-		//	const annotations = file?.session?.getAnnotations();
-		//	return !!annotations.length;
-		// });
-		// if (fileWithProblems) {
-		//	problemButton.show();
-		// } else {
-		//	problemButton.hide();
-		// }
+		const { showSideButtons } = appSettings.value;
+		if (!showSideButtons) {
+			problemButton.hide();
+			return;
+		}
+
+		const hasProblems = manager.files.some((file) => fileHasProblems(file));
+		if (hasProblems) {
+			problemButton.show();
+		} else {
+			problemButton.hide();
+		}
+	}
+
+	function getDiagnosticStateForFile(file) {
+		if (!file || file.type !== "editor") return null;
+		if (manager.activeFile?.id === file.id && editor?.state) {
+			return editor.state;
+		}
+		return file.session || null;
 	}
 
 	/**
@@ -1863,6 +1924,8 @@ async function EditorManager($header, $body) {
 		$header.text = file.filename;
 		manager.onupdate("switch-file");
 		events.emit("switch-file", file);
+
+		toggleProblemButton();
 	}
 
 	/**

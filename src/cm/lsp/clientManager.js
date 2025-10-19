@@ -5,11 +5,11 @@ import {
 	languageServerExtensions,
 } from "@codemirror/lsp-client";
 import { MapMode } from "@codemirror/state";
+import Uri from "utils/Uri";
 import { ensureServerRunning } from "./serverLauncher";
 import serverRegistry from "./serverRegistry";
 import { createTransport } from "./transport";
 import AcodeWorkspace from "./workspace";
-import Uri from "utils/Uri";
 
 function asArray(value) {
 	if (!value) return [];
@@ -159,8 +159,10 @@ export class LspClientManager {
 
 	async #ensureClient(server, context) {
 		const resolvedRoot = await this.#resolveRootUri(server, context);
-		const { normalizedRootUri, originalRootUri } =
-			normalizeRootUriForServer(server, resolvedRoot);
+		const { normalizedRootUri, originalRootUri } = normalizeRootUriForServer(
+			server,
+			resolvedRoot,
+		);
 		const key = pluginKey(server.id, normalizedRootUri);
 		if (this.#clients.has(key)) {
 			return this.#clients.get(key);
@@ -259,24 +261,15 @@ export class LspClientManager {
 					console.info(`[LSP:${server.id}] server info`, info);
 				}
 				if (normalizedRootUri) {
-					if (
-						originalRootUri &&
-						originalRootUri !== normalizedRootUri
-					) {
+					if (originalRootUri && originalRootUri !== normalizedRootUri) {
 						console.info(
 							`[LSP:${server.id}] root ${normalizedRootUri} (from ${originalRootUri})`,
 						);
 					} else {
-						console.info(
-							`[LSP:${server.id}] root`,
-							normalizedRootUri,
-						);
+						console.info(`[LSP:${server.id}] root`, normalizedRootUri);
 					}
 				} else if (originalRootUri) {
-					console.info(
-						`[LSP:${server.id}] root ignored`,
-						originalRootUri,
-					);
+					console.info(`[LSP:${server.id}] root ignored`, originalRootUri);
 				}
 				client.__acodeLoggedInfo = true;
 			}
