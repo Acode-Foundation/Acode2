@@ -9,6 +9,7 @@ import { ensureServerRunning } from "./serverLauncher";
 import serverRegistry from "./serverRegistry";
 import { createTransport } from "./transport";
 import AcodeWorkspace from "./workspace";
+import Uri from "utils/Uri";
 
 function asArray(value) {
 	if (!value) return [];
@@ -157,8 +158,10 @@ export class LspClientManager {
 	}
 
 	async #ensureClient(server, context) {
-		const rootUri = await this.#resolveRootUri(server, context);
-		const key = pluginKey(server.id, rootUri);
+		const resolvedRoot = await this.#resolveRootUri(server, context);
+		const { normalizedRootUri, originalRootUri } =
+			normalizeRootUriForServer(server, resolvedRoot);
+		const key = pluginKey(server.id, normalizedRootUri);
 		if (this.#clients.has(key)) {
 			return this.#clients.get(key);
 		}
@@ -224,8 +227,12 @@ export class LspClientManager {
 				new AcodeWorkspace(client, workspaceOptions);
 		}
 
-		if (rootUri && !clientConfig.rootUri) {
-			clientConfig.rootUri = rootUri;
+		if (normalizedRootUri && !clientConfig.rootUri) {
+			clientConfig.rootUri = normalizedRootUri;
+		}
+
+		if (!normalizedRootUri && clientConfig.rootUri) {
+			delete clientConfig.rootUri;
 		}
 
 		if (server.startupTimeout && !clientConfig.timeout) {
@@ -239,7 +246,8 @@ export class LspClientManager {
 			await ensureServerRunning(server);
 			transportHandle = createTransport(server, {
 				...context,
-				rootUri,
+				rootUri: normalizedRootUri ?? null,
+				originalRootUri,
 			});
 			await transportHandle.ready;
 			client = new LSPClient(clientConfig);
@@ -250,8 +258,25 @@ export class LspClientManager {
 				if (info) {
 					console.info(`[LSP:${server.id}] server info`, info);
 				}
-				if (rootUri) {
-					console.info(`[LSP:${server.id}] root`, rootUri);
+				if (normalizedRootUri) {
+					if (
+						originalRootUri &&
+						originalRootUri !== normalizedRootUri
+					) {
+						console.info(
+							`[LSP:${server.id}] root ${normalizedRootUri} (from ${originalRootUri})`,
+						);
+					} else {
+						console.info(
+							`[LSP:${server.id}] root`,
+							normalizedRootUri,
+						);
+					}
+				} else if (originalRootUri) {
+					console.info(
+						`[LSP:${server.id}] root ignored`,
+						originalRootUri,
+					);
 				}
 				client.__acodeLoggedInfo = true;
 			}
@@ -265,21 +290,30 @@ export class LspClientManager {
 			server,
 			client,
 			transportHandle,
-			rootUri,
+			normalizedRootUri,
+			originalRootUri,
 		});
 
 		this.#clients.set(key, state);
 		return state;
 	}
 
-	#createClientState({ key, server, client, transportHandle, rootUri }) {
+	#createClientState({
+		key,
+		server,
+		client,
+		transportHandle,
+		normalizedRootUri,
+		originalRootUri,
+	}) {
 		const fileRefs = new Map();
+		const effectiveRoot = normalizedRootUri ?? originalRootUri ?? null;
 
 		const attach = (uri, view) => {
 			const existing = fileRefs.get(uri) || new Set();
 			existing.add(view);
 			fileRefs.set(uri, existing);
-			const suffix = rootUri ? ` (root ${rootUri})` : "";
+			const suffix = effectiveRoot ? ` (root ${effectiveRoot})` : "";
 			console.info(`[LSP:${server.id}] attached to ${uri}${suffix}`);
 		};
 
@@ -297,7 +331,11 @@ export class LspClientManager {
 			}
 
 			if (!fileRefs.size) {
-				this.options.onClientIdle?.({ server, client, rootUri });
+				this.options.onClientIdle?.({
+					server,
+					client,
+					rootUri: effectiveRoot,
+				});
 			}
 		};
 
@@ -319,7 +357,7 @@ export class LspClientManager {
 			server,
 			client,
 			transport: transportHandle,
-			rootUri,
+			rootUri: effectiveRoot,
 			attach,
 			detach,
 			dispose,
@@ -417,3 +455,104 @@ function resolveIndentWidth(unit) {
 const defaultManager = new LspClientManager();
 
 export default defaultManager;
+
+const FILE_SCHEME_REQUIRED_SERVERS = new Set(["typescript"]);
+
+function normalizeRootUriForServer(server, rootUri) {
+	if (!rootUri || typeof rootUri !== "string") {
+		return { normalizedRootUri: null, originalRootUri: null };
+	}
+	const schemeMatch = /^([a-zA-Z][\w+\-.]*):/.exec(rootUri);
+	const scheme = schemeMatch ? schemeMatch[1].toLowerCase() : null;
+	if (scheme === "file") {
+		return { normalizedRootUri: rootUri, originalRootUri: rootUri };
+	}
+
+	if (scheme === "content") {
+		const fileUri = contentUriToFileUri(rootUri);
+		if (fileUri) {
+			return { normalizedRootUri: fileUri, originalRootUri: rootUri };
+		}
+		if (FILE_SCHEME_REQUIRED_SERVERS.has(server.id)) {
+			return { normalizedRootUri: null, originalRootUri: rootUri };
+		}
+	}
+
+	return { normalizedRootUri: rootUri, originalRootUri: rootUri };
+}
+
+function contentUriToFileUri(uri) {
+	try {
+		const parsed = Uri.parse(uri);
+		if (!parsed || typeof parsed !== "object") return null;
+		const { docId, rootUri, isFileUri } = parsed;
+		if (!docId) return null;
+
+		if (isFileUri && rootUri) {
+			return rootUri;
+		}
+
+		const providerMatch =
+			/^content:\/\/com\.((?![:<>"/\\|?*]).*)\.documents\//.exec(rootUri);
+		const providerId = providerMatch ? providerMatch[1] : null;
+
+		let normalized = docId.trim();
+		if (!normalized) return null;
+
+		switch (providerId) {
+			case "foxdebug.acode":
+				normalized = normalized.replace(/:+$/, "");
+				if (!normalized) return null;
+				if (normalized.startsWith("raw:/")) {
+					normalized = normalized.slice(4);
+				} else if (normalized.startsWith("raw:")) {
+					normalized = normalized.slice(4);
+				}
+				if (!normalized.startsWith("/")) return null;
+				return buildFileUri(normalized);
+			case "android.externalstorage":
+				normalized = normalized.replace(/:+$/, "");
+				if (!normalized) return null;
+
+				if (normalized.startsWith("/")) {
+					return buildFileUri(normalized);
+				}
+
+				if (normalized.startsWith("raw:/")) {
+					return buildFileUri(normalized.slice(4));
+				}
+
+				if (normalized.startsWith("raw:")) {
+					return buildFileUri(normalized.slice(4));
+				}
+
+				const separator = normalized.indexOf(":");
+				if (separator === -1) return null;
+
+				const root = normalized.slice(0, separator);
+				const remainder = normalized.slice(separator + 1);
+				if (!remainder) return null;
+
+				switch (root) {
+					case "primary":
+						return buildFileUri(`/storage/emulated/0/${remainder}`);
+					default:
+						if (/^[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}$/.test(root)) {
+							return buildFileUri(`/storage/${root}/${remainder}`);
+						}
+				}
+				return null;
+			default:
+				return null;
+		}
+	} catch (_) {
+		return null;
+	}
+}
+
+function buildFileUri(pathname) {
+	if (!pathname) return null;
+	const normalized = pathname.startsWith("/") ? pathname : `/${pathname}`;
+	const encoded = encodeURI(normalized).replace(/#/g, "%23");
+	return `file://${encoded}`;
+}
