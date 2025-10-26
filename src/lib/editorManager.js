@@ -64,7 +64,6 @@ import ScrollBar from "components/scrollbar";
 import SideButton, { sideButtonContainer } from "components/sideButton";
 import keyboardHandler, { keydownState } from "handlers/keyboard";
 import actions from "handlers/quickTools";
-import Url from "utils/Url";
 // TODO: Update EditorFile for CodeMirror compatibility
 import EditorFile from "./editorFile";
 import openFile from "./openFile";
@@ -494,14 +493,7 @@ async function EditorManager($header, $body) {
 				if (uri.startsWith(base)) return base;
 			} catch (_) {}
 		}
-		if (uri.includes("::")) {
-			return uri.split("::")[0];
-		}
-		try {
-			return Url.dirname(uri);
-		} catch (_) {
-			return null;
-		}
+		return uri;
 	}
 
 	function detachActiveLsp() {
