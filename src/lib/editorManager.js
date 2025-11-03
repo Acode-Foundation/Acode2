@@ -14,7 +14,12 @@ import {
 
 import { indentUnit } from "@codemirror/language";
 import { search } from "@codemirror/search";
-import { Compartment, EditorState, Prec, StateEffect } from "@codemirror/state";
+import {
+	Compartment,
+	EditorState,
+	Prec,
+	StateEffect,
+} from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 import {
 	EditorView,
@@ -138,6 +143,23 @@ async function EditorManager($header, $body) {
 		"&": { height: "100%" },
 		".cm-scroller": { height: "100%", overflow: "auto" },
 	});
+
+	const pointerCursorVisibilityExtension = EditorView.updateListener.of(
+		(update) => {
+			if (!update.selectionSet) return;
+			const pointerTriggered = update.transactions.some((tr) =>
+				tr.isUserEvent("pointer") ||
+				tr.isUserEvent("select.pointer") ||
+				tr.isUserEvent("touch") ||
+				tr.isUserEvent("select.touch"),
+			);
+			if (!pointerTriggered) return;
+			if (isCursorVisible()) return;
+			requestAnimationFrame(() => {
+				if (!isCursorVisible()) scrollCursorIntoView({ behavior: "instant" });
+			});
+		},
+	);
 
 	// Compartment to swap editor theme dynamically
 	const themeCompartment = new Compartment();
@@ -605,6 +627,7 @@ async function EditorManager($header, $body) {
 			// Default theme
 			themeCompartment.of(oneDark),
 			fixedHeightTheme,
+			pointerCursorVisibilityExtension,
 			search(),
 			// Ensure read-only can be toggled later via compartment
 			readOnlyCompartment.of(EditorState.readOnly.of(false)),
@@ -889,6 +912,7 @@ async function EditorManager($header, $body) {
 			// keep compartment in the state to allow dynamic theme changes later
 			themeCompartment.of(oneDark),
 			fixedHeightTheme,
+			pointerCursorVisibilityExtension,
 			search(),
 			// Keep dynamic compartments across state swaps
 			...getBaseExtensionsFromOptions(),
@@ -1433,15 +1457,12 @@ async function EditorManager($header, $body) {
 		scroller?.addEventListener("scroll", handleEditorScroll, { passive: true });
 		handleEditorScroll();
 
-		// TODO: Implement focus event for CodeMirror
-		// editor.on("focus", async () => {
-		//	const { activeFile } = manager;
-		//	activeFile.focused = true;
-		//	keyboardHandler.on("keyboardShow", scrollCursorIntoView);
-		//	if (isScrolling) return;
-		//	$hScrollbar.hide();
-		//	$vScrollbar.hide();
-		// });
+		keyboardHandler.on("keyboardShowStart", () => {
+			requestAnimationFrame(() => {
+				scrollCursorIntoView({ behavior: "instant" });
+			});
+		});
+		keyboardHandler.on("keyboardShow", scrollCursorIntoView);
 
 		// TODO: Implement blur event for CodeMirror
 		// editor.on("blur", async () => {
@@ -1547,34 +1568,54 @@ async function EditorManager($header, $body) {
 	/**
 	 * Scrolls the cursor into view if it is not currently visible.
 	 */
-	// TODO: Implement cursor scrolling for CodeMirror
-	function scrollCursorIntoView() {
-		// keyboardHandler.off("keyboardShow", scrollCursorIntoView);
-		// if (isCursorVisible()) return;
-		// const { teardropSize } = appSettings.value;
-		// editor.renderer.scrollCursorIntoView();
-		// editor.renderer.scrollBy(0, teardropSize + 10);
-		// editor._emit("scroll-intoview");
+	function scrollCursorIntoView(options = {}) {
+		const view = editor;
+		const scroller = view?.scrollDOM;
+		if (!view || !scroller) return;
+
+		const { behavior = "smooth" } = options;
+		const { head } = view.state.selection.main;
+		const caret = view.coordsAtPos(head);
+		if (!caret) return;
+
+		const scrollerRect = scroller.getBoundingClientRect();
+		const relativeTop = caret.top - scrollerRect.top + scroller.scrollTop;
+		const relativeBottom =
+			caret.bottom - scrollerRect.top + scroller.scrollTop;
+		const topMargin = 16;
+		const bottomMargin =
+			(appSettings.value?.teardropSize || 24) + 12;
+
+		const scrollTop = scroller.scrollTop;
+		const visibleTop = scrollTop + topMargin;
+		const visibleBottom = scrollTop + scroller.clientHeight - bottomMargin;
+
+		if (relativeTop < visibleTop) {
+			const nextTop = Math.max(relativeTop - topMargin, 0);
+			scroller.scrollTo({ top: nextTop, behavior });
+		} else if (relativeBottom > visibleBottom) {
+			const delta = relativeBottom - visibleBottom;
+			scroller.scrollTo({ top: scrollTop + delta, behavior });
+		}
 	}
 
 	/**
-	 * Checks if the cursor is visible within the Ace editor.
+	 * Checks if the cursor is visible within the CodeMirror viewport.
 	 * @returns {boolean} - True if the cursor is visible, false otherwise.
 	 */
-	// TODO: Implement cursor visibility check for CodeMirror
 	function isCursorVisible() {
-		// const { editor, container } = manager;
-		// const { teardropSize } = appSettings.value;
-		// const cursorPos = editor.getCursorPosition();
-		// const contentTop = container.getBoundingClientRect().top;
-		// const contentBottom = contentTop + container.clientHeight;
-		// const cursorTop = editor.renderer.textToScreenCoordinates(
-		//	cursorPos.row,
-		//	cursorPos.column,
-		// ).pageY;
-		// const cursorBottom = cursorTop + teardropSize + 10;
-		// return cursorTop >= contentTop && cursorBottom <= contentBottom;
-		return true; // Placeholder
+		const view = editor;
+		const scroller = view?.scrollDOM;
+		if (!view || !scroller) return true;
+
+		const { head } = view.state.selection.main;
+		const caret = view.coordsAtPos(head);
+		if (!caret) return true;
+
+		const scrollerRect = scroller.getBoundingClientRect();
+		return (
+			caret.top >= scrollerRect.top && caret.bottom <= scrollerRect.bottom
+		);
 	}
 
 	/**
