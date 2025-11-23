@@ -56,6 +56,9 @@ import KeyboardEvent from "utils/keyboardEvent";
 import Url from "utils/Url";
 import constants from "./constants";
 
+const { Fold } = ace.require("ace/edit_session/fold");
+const { Range } = ace.require("ace/range");
+
 export default class Acode {
 	#modules = {};
 	#pluginsInit = {};

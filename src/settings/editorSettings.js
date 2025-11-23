@@ -110,6 +110,11 @@ export default function editorSettings() {
 		// 	},
 		// },
 		{
+			key: "textWrap",
+			text: strings["text wrap"],
+			checkbox: values.textWrap,
+		},
+		{
 			key: "teardropSize",
 			text: strings["cursor controller size"],
 			value: values.teardropSize,
