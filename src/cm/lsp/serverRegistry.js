@@ -179,6 +179,24 @@ function sanitizeDefinition(definition) {
 	return sanitized;
 }
 
+function resolveJsTsLanguageId(languageId, languageName) {
+	const lang = toKey(languageId || languageName);
+	switch (lang) {
+		case "tsx":
+		case "typescriptreact":
+			return "typescriptreact";
+		case "jsx":
+		case "javascriptreact":
+			return "javascriptreact";
+		case "ts":
+			return "typescript";
+		case "js":
+			return "javascript";
+		default:
+			return lang || null;
+	}
+}
+
 function notify(event, payload) {
 	listeners.forEach((fn) => {
 		try {
@@ -282,6 +300,40 @@ function registerBuiltinServers() {
 				},
 			},
 			enabled: false,
+			resolveLanguageId: ({ languageId, languageName }) =>
+				resolveJsTsLanguageId(languageId, languageName),
+		},
+		{
+			id: "vtsls",
+			label: "TypeScript / JavaScript (vtsls)",
+			languages: [
+				"javascript",
+				"javascriptreact",
+				"typescript",
+				"typescriptreact",
+				"tsx",
+				"jsx",
+			],
+			transport: {
+				kind: "websocket",
+				url: "ws://127.0.0.1:2095",
+			},
+			launcher: {
+				bridge: {
+					kind: "axs",
+					port: 2095,
+					command: "vtsls",
+					args: ["--stdio"],
+				},
+				checkCommand: "which vtsls",
+				install: {
+					command:
+						"apk add --no-cache nodejs npm && npm install -g @vtsls/language-server",
+				},
+			},
+			enabled: false,
+			resolveLanguageId: ({ languageId, languageName }) =>
+				resolveJsTsLanguageId(languageId, languageName),
 		},
 		{
 			id: "python",
@@ -310,6 +362,46 @@ function registerBuiltinServers() {
 				},
 			},
 			enabled: false,
+		},
+		{
+			id: "eslint",
+			label: "ESLint",
+			languages: [
+				"javascript",
+				"javascriptreact",
+				"typescript",
+				"typescriptreact",
+				"tsx",
+				"jsx",
+			],
+			transport: {
+				kind: "websocket",
+				url: "ws://127.0.0.1:2096",
+			},
+			launcher: {
+				bridge: {
+					kind: "axs",
+					port: 2096,
+					command: "vscode-eslint-language-server",
+					args: ["--stdio"],
+				},
+				checkCommand: "which vscode-eslint-language-server",
+				install: {
+					command:
+						"apk add --no-cache nodejs npm && npm install -g vscode-langservers-extracted",
+				},
+			},
+			enabled: false,
+			clientConfig: {
+				builtinExtensions: {
+					hover: false,
+					completion: false,
+					signature: false,
+					keymaps: false,
+				},
+			},
+			resolveLanguageId: ({ languageId, languageName }) =>
+				resolveJsTsLanguageId(languageId, languageName),
 		},
 		{
 			id: "clangd",

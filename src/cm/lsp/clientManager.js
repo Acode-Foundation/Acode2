@@ -2,9 +2,17 @@ import { getIndentUnit, indentUnit } from "@codemirror/language";
 import {
 	LSPClient,
 	LSPPlugin,
-	languageServerExtensions,
+	findReferencesKeymap,
+	formatKeymap,
+	hoverTooltips,
+	jumpToDefinitionKeymap,
+	renameKeymap,
+	serverCompletion,
+	serverDiagnostics,
+	signatureHelp,
 } from "@codemirror/lsp-client";
 import { MapMode } from "@codemirror/state";
+import { keymap } from "@codemirror/view";
 import Uri from "utils/Uri";
 import { ensureServerRunning } from "./serverLauncher";
 import serverRegistry from "./serverRegistry";
@@ -22,6 +30,35 @@ function pluginKey(serverId, rootUri) {
 
 function safeString(value) {
 	return value != null ? String(value) : "";
+}
+
+const defaultKeymaps = keymap.of([
+	...formatKeymap,
+	...renameKeymap,
+	...jumpToDefinitionKeymap,
+	...findReferencesKeymap,
+]);
+
+function buildBuiltinExtensions({
+	includeHover = true,
+	includeCompletion = true,
+	includeSignature = true,
+	includeKeymaps = true,
+	includeDiagnostics = true,
+} = {}) {
+	const extensions = [];
+	let diagnosticsExtension = null;
+
+	if (includeCompletion) extensions.push(serverCompletion());
+	if (includeHover) extensions.push(hoverTooltips());
+	if (includeKeymaps) extensions.push(defaultKeymaps);
+	if (includeSignature) extensions.push(signatureHelp());
+	if (includeDiagnostics) {
+		diagnosticsExtension = serverDiagnostics();
+		extensions.push(diagnosticsExtension);
+	}
+
+	return { extensions, diagnosticsExtension };
 }
 
 export class LspClientManager {
@@ -173,22 +210,35 @@ export class LspClientManager {
 		};
 
 		const clientConfig = { ...(server.clientConfig || {}) };
+		const builtinConfig = clientConfig.builtinExtensions || {};
+		const useDefaultExtensions = clientConfig.useDefaultExtensions !== false;
+		const { extensions: defaultExtensions, diagnosticsExtension } =
+			useDefaultExtensions
+				? buildBuiltinExtensions({
+						includeHover: builtinConfig.hover !== false,
+						includeCompletion: builtinConfig.completion !== false,
+						includeSignature: builtinConfig.signature !== false,
+						includeKeymaps: builtinConfig.keymaps !== false,
+						includeDiagnostics: builtinConfig.diagnostics !== false,
+					})
+				: { extensions: [], diagnosticsExtension: null };
 
 		const extraExtensions = asArray(this.options.clientExtensions);
 		const serverExtensions = asArray(clientConfig.extensions);
-		const builtinExtensions = languageServerExtensions();
 		const wantsCustomDiagnostics = [
 			...extraExtensions,
 			...serverExtensions,
 		].some(
 			(ext) => !!ext?.clientCapabilities?.textDocument?.publishDiagnostics,
 		);
+
+		const filteredBuiltins =
+			wantsCustomDiagnostics && diagnosticsExtension
+				? defaultExtensions.filter((ext) => ext !== diagnosticsExtension)
+				: defaultExtensions;
+
 		const mergedExtensions = [
-			...(wantsCustomDiagnostics
-				? builtinExtensions.filter(
-						(ext) => !ext?.clientCapabilities?.textDocument?.publishDiagnostics,
-					)
-				: builtinExtensions),
+			...filteredBuiltins,
 			...extraExtensions,
 			...serverExtensions,
 		];
