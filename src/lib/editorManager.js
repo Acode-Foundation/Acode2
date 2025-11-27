@@ -34,9 +34,11 @@ import {
 } from "@emmetio/codemirror6-plugin";
 import createBaseExtensions from "cm/baseExtensions";
 import lspClientManager from "cm/lsp/clientManager";
-import lspDiagnosticsExtension, {
+import {
 	getLspDiagnostics,
 	LSP_DIAGNOSTICS_EVENT,
+	lspDiagnosticsClientExtension,
+	lspDiagnosticsUiExtension,
 } from "cm/lsp/diagnostics";
 import { stopManagedServer } from "cm/lsp/serverLauncher";
 import serverRegistry from "cm/lsp/serverRegistry";
@@ -183,6 +185,9 @@ async function EditorManager($header, $body) {
 	const languageCompartment = new Compartment();
 	// Compartment for LSP extensions so we can swap per file
 	const lspCompartment = new Compartment();
+	const diagnosticsClientExt = lspDiagnosticsClientExtension();
+	const buildDiagnosticsUiExt = () =>
+		lspDiagnosticsUiExtension(appSettings?.value?.lintGutter !== false);
 	let lspRequestToken = 0;
 	let lastLspUri = null;
 	const UNTITLED_URI_PREFIX = "untitled://acode/";
@@ -1167,7 +1172,8 @@ async function EditorManager($header, $body) {
 			}
 			return null;
 		},
-		clientExtensions: [lspDiagnosticsExtension()],
+		clientExtensions: [diagnosticsClientExt],
+		diagnosticsUiExtension: buildDiagnosticsUiExt(),
 	});
 	applyLspSettings();
 
@@ -1282,6 +1288,16 @@ async function EditorManager($header, $body) {
 
 	appSettings.on("update:relativeLineNumbers", function () {
 		updateEditorLineNumbersFromSettings();
+	});
+
+	appSettings.on("update:lintGutter", function (value) {
+		lspClientManager.setOptions({
+			diagnosticsUiExtension: lspDiagnosticsUiExtension(value !== false),
+		});
+		const active = manager.activeFile;
+		if (active?.type === "editor") {
+			void configureLspForFile(active);
+		}
 	});
 
 	// appSettings.on("update:elasticTabstops", function (_value) {

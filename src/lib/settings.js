@@ -177,6 +177,7 @@ class Settings {
 			showRetryToast: false,
 			showSideButtons: true,
 			showAnnotations: false,
+			lintGutter: true,
 			rainbowBrackets: true,
 			pluginsDisabled: {}, // pluginId: true/false
 			lsp: {

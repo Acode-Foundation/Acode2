@@ -114,7 +114,7 @@ function lspLinterSource(view) {
 	return mapDiagnostics(plugin, view.state);
 }
 
-export function lspDiagnosticsExtension() {
+export function lspDiagnosticsClientExtension() {
 	return {
 		clientCapabilities: {
 			textDocument: {
@@ -148,18 +148,31 @@ export function lspDiagnosticsExtension() {
 				return true;
 			},
 		},
-		editorExtension: [
-			lspPublishedDiagnostics,
-			lintGutter(),
-			linter(lspLinterSource, {
-				needsRefresh(update) {
-					return update.transactions.some((tr) =>
-						tr.effects.some((effect) => effect.is(setPublishedDiagnostics)),
-					);
-				},
-				autoPanel: true,
-			}),
-		],
+	};
+}
+
+export function lspDiagnosticsUiExtension(includeGutter = true) {
+	const extensions = [
+		lspPublishedDiagnostics,
+		linter(lspLinterSource, {
+			needsRefresh(update) {
+				return update.transactions.some((tr) =>
+					tr.effects.some((effect) => effect.is(setPublishedDiagnostics)),
+				);
+			},
+			autoPanel: true,
+		}),
+	];
+	if (includeGutter) {
+		extensions.splice(1, 0, lintGutter());
+	}
+	return extensions;
+}
+
+export function lspDiagnosticsExtension(includeGutter = true) {
+	return {
+		...lspDiagnosticsClientExtension(),
+		editorExtension: lspDiagnosticsUiExtension(includeGutter),
 	};
 }
 

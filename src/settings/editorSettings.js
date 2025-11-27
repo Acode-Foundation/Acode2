@@ -56,6 +56,11 @@ export default function editorSettings() {
 			checkbox: values.linenumbers,
 		},
 		{
+			key: "lintGutter",
+			text: strings["lint gutter"] || "Show lint gutter",
+			checkbox: values.lintGutter ?? true,
+		},
+		{
 			key: "lineHeight",
 			text: strings["line height"],
 			value: values.lineHeight,

@@ -87,6 +87,7 @@ export class LspClientManager {
 		if (!servers.length) return [];
 
 		const lspExtensions = [];
+		const diagnosticsUiExtension = this.options.diagnosticsUiExtension;
 
 		for (const server of servers) {
 			let targetLanguageId = effectiveLang;
@@ -130,6 +131,10 @@ export class LspClientManager {
 					error,
 				);
 			}
+		}
+
+		if (diagnosticsUiExtension && lspExtensions.length) {
+			lspExtensions.push(...asArray(diagnosticsUiExtension));
 		}
 
 		return lspExtensions;
