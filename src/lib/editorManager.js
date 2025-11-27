@@ -199,10 +199,12 @@ async function EditorManager($header, $body) {
 	function makeFontTheme() {
 		const fontSize = appSettings?.value?.fontSize || "12px";
 		const lineHeight = appSettings?.value?.lineHeight || 1.6;
+		const fontFamily = getEditorFontFamily();
 		return EditorView.theme({
 			"&": { fontSize, lineHeight: String(lineHeight) },
-			".cm-content": { fontFamily: getEditorFontFamily() },
-			".cm-tooltip": { fontFamily: getEditorFontFamily() },
+			".cm-content": { fontFamily },
+			".cm-gutter": { fontFamily },
+			".cm-tooltip, .cm-tooltip *": { fontFamily },
 		});
 	}
 
