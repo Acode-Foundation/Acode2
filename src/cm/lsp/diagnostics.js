@@ -160,7 +160,8 @@ export function lspDiagnosticsUiExtension(includeGutter = true) {
 					tr.effects.some((effect) => effect.is(setPublishedDiagnostics)),
 				);
 			},
-			autoPanel: true,
+			// keep panel closed by default
+			autoPanel: false,
 		}),
 	];
 	if (includeGutter) {
