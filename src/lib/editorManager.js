@@ -14,12 +14,7 @@ import {
 
 import { indentUnit } from "@codemirror/language";
 import { search } from "@codemirror/search";
-import {
-	Compartment,
-	EditorState,
-	Prec,
-	StateEffect,
-} from "@codemirror/state";
+import { Compartment, EditorState, Prec, StateEffect } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 import {
 	EditorView,
@@ -147,11 +142,12 @@ async function EditorManager($header, $body) {
 	const pointerCursorVisibilityExtension = EditorView.updateListener.of(
 		(update) => {
 			if (!update.selectionSet) return;
-			const pointerTriggered = update.transactions.some((tr) =>
-				tr.isUserEvent("pointer") ||
-				tr.isUserEvent("select.pointer") ||
-				tr.isUserEvent("touch") ||
-				tr.isUserEvent("select.touch"),
+			const pointerTriggered = update.transactions.some(
+				(tr) =>
+					tr.isUserEvent("pointer") ||
+					tr.isUserEvent("select.pointer") ||
+					tr.isUserEvent("touch") ||
+					tr.isUserEvent("select.touch"),
 			);
 			if (!pointerTriggered) return;
 			if (isCursorVisible()) return;
@@ -1582,11 +1578,9 @@ async function EditorManager($header, $body) {
 
 		const scrollerRect = scroller.getBoundingClientRect();
 		const relativeTop = caret.top - scrollerRect.top + scroller.scrollTop;
-		const relativeBottom =
-			caret.bottom - scrollerRect.top + scroller.scrollTop;
+		const relativeBottom = caret.bottom - scrollerRect.top + scroller.scrollTop;
 		const topMargin = 16;
-		const bottomMargin =
-			(appSettings.value?.teardropSize || 24) + 12;
+		const bottomMargin = (appSettings.value?.teardropSize || 24) + 12;
 
 		const scrollTop = scroller.scrollTop;
 		const visibleTop = scrollTop + topMargin;
@@ -1615,9 +1609,7 @@ async function EditorManager($header, $body) {
 		if (!caret) return true;
 
 		const scrollerRect = scroller.getBoundingClientRect();
-		return (
-			caret.top >= scrollerRect.top && caret.bottom <= scrollerRect.bottom
-		);
+		return caret.top >= scrollerRect.top && caret.bottom <= scrollerRect.bottom;
 	}
 
 	/**

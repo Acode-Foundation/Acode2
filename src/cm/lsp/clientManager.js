@@ -1,11 +1,11 @@
 import { getIndentUnit, indentUnit } from "@codemirror/language";
 import {
-	LSPClient,
-	LSPPlugin,
 	findReferencesKeymap,
 	formatKeymap,
 	hoverTooltips,
 	jumpToDefinitionKeymap,
+	LSPClient,
+	LSPPlugin,
 	renameKeymap,
 	serverCompletion,
 	serverDiagnostics,
