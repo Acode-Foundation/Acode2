@@ -1615,6 +1615,7 @@ async function EditorManager($header, $body) {
 	 * Checks if the cursor is visible within the CodeMirror viewport.
 	 * @returns {boolean} - True if the cursor is visible, false otherwise.
 	 */
+	// TODO: Implement cursor visibility check for CodeMirror
 	function isCursorVisible() {
 		const view = editor;
 		const scroller = view?.scrollDOM;

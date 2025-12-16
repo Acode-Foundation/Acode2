@@ -64,6 +64,20 @@ module.exports = (env, options) => {
       },
     ],
   });
+
+  // Separate rule for CodeMirror files - only babel-loader, no html-tag-js
+  rules.push({
+    test: /\.m?js$/,
+    include: /node_modules\/(@codemirror|codemirror)/,
+    use: [
+      {
+        loader: 'babel-loader',
+        options: {
+          presets: ['@babel/preset-env'],
+        },
+      },
+    ],
+  });
   // }
 
   const main = {
