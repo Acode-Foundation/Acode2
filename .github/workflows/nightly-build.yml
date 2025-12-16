@@ -65,6 +65,7 @@
       outputs:
          release_output_url: ${{ steps.release.outputs.url }} 
          updated_version: ${{ steps.update-version.outputs.UPDATED_VERSION}} 
+         RELEASE_NOTES: ${{ env.RELEASE_NOTES }}
       steps:
         - name: Fast Fail if secrets are missing
           if: ${{ env.KEYSTORE_CONTENT == '' || env.BUILD_JSON_CONTENT == '' }}
@@ -201,6 +202,7 @@
         - name: Check Nightly Tag and Force Update
           #if: github.event_name == 'push' && contains(github.event.ref, 'tags/nightly') == false
           if: ${{ ! inputs.skip_tagging_and_releases }}
+          id: check-nightly-tag-force-update
           run: |
             # Check if the nightly tag exists and get the commit it points to
             if git show-ref --quiet refs/tags/nightly; then
@@ -223,10 +225,22 @@
               echo "Nightly tag already points to this commit. Skipping update."
             fi
 
+        
+        - name: Generate Release Notes (Experimental)
+          if: ${{ success() && env.releaseRequired == 'true' }}
+          id: gen-release-notes
+          continue-on-error: true
+          run: |
+              RELEASE_NOTES=$(node utils/scripts/generate-release-notes.js ${{ github.repository_owner }} Acode ${{ github.sha }} --format md --from-tag ${{ env.TAG_COMMIT }} --important-only --quiet --changelog-only)
+              {
+                echo "RELEASE_NOTES<<EOF"
+                echo "$RELEASE_NOTES"
+                echo "EOF"
+              } >> $GITHUB_ENV        
         - name: Release Nightly Version
 #          Only run this step, if not called from another workflow. And a previous step is successful with releasedRequired=true
           id: release
-          if: ${{ ! inputs.skip_tagging_and_releases && success() && env.releaseRequired == 'true' && !inputs.is_PR }}
+          if: ${{ ! inputs.skip_tagging_and_releases && steps.check-nightly-tag-force-update.outcome == 'success' && env.releaseRequired == 'true' && !inputs.is_PR }}
           uses: softprops/action-gh-release@v2
           with:
             prerelease: true
@@ -239,6 +253,8 @@
               Automated Nightly (pre-release) Releases for Today
               
               [Compare Changes](https://github.com/${{ github.repository }}/compare/${{ env.TAG_COMMIT }}...${{ github.sha }})
+
+              ${{ env.RELEASE_NOTES }}
 
         - name: Update Last Comment by bot (If ran in PR)
           if: inputs.is_PR
@@ -261,5 +277,6 @@
       with:
          tag_name: ${{ needs.build.outputs.updated_version }}
          url: ${{ needs.build.outputs.release_output_url }}
+         body: ${{ needs.build.outputs.RELEASE_NOTES }}
       secrets:
         DISCORD_WEBHOOK_RELEASE_NOTES: ${{ secrets.DISCORD_WEBHOOK_RELEASE_NOTES }}
