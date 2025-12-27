@@ -30,7 +30,7 @@ deleteDirRecursively(resPath, [
 ]);
 copyDirRecursively(localResPath, resPath);
 enableLegacyJni();
-enableStaticContext();
+replaceMainActivity();
 patchTargetSdkVersion();
 
 
@@ -133,59 +133,29 @@ function enableLegacyJni() {
   console.log('[Cordova Hook] ✅ Enabled legacy JNI packaging');
 }
 
-function enableStaticContext() {
+function replaceMainActivity() {
   try {
     const prefix = execSync('npm prefix').toString().trim();
-    const mainActivityPath = path.join(
+    const targetPath = path.join(
       prefix,
       'platforms/android/app/src/main/java/com/foxdebug/acode/MainActivity.java'
     );
 
-    if (!fs.existsSync(mainActivityPath)) {
+     const sourcePath = path.join(
+      prefix,
+      'MainActivity.java'
+    );
+
+    if (!fs.existsSync(targetPath) || !fs.existsSync(sourcePath)) {
       return;
     }
 
-    let content = fs.readFileSync(mainActivityPath, 'utf-8');
+    let content = fs.readFileSync(sourcePath, 'utf-8');
+    fs.writeFileSync(targetPath, content, 'utf-8');
 
-    // Skip if fully patched
-    if (
-      content.includes('WeakReference<Context>') &&
-      content.includes('public static Context getContext()') &&
-      content.includes('weakContext = new WeakReference<>(this);')
-    ) {
-      return;
-    }
 
-    // Add missing imports
-    if (!content.includes('import java.lang.ref.WeakReference;')) {
-      content = content.replace(
-        /import org\.apache\.cordova\.\*;/,
-        match =>
-          match +
-          '\nimport android.content.Context;\nimport java.lang.ref.WeakReference;'
-      );
-    }
-
-    // Inject static field and method into class body
-    content = content.replace(
-      /public class MainActivity extends CordovaActivity\s*\{/,
-      match =>
-        match +
-        `\n\n    private static WeakReference<Context> weakContext;\n\n` +
-        `    public static Context getContext() {\n` +
-        `        return weakContext != null ? weakContext.get() : null;\n` +
-        `    }\n`
-    );
-
-    // Insert weakContext assignment inside onCreate
-    content = content.replace(
-      /super\.onCreate\(savedInstanceState\);/,
-      `super.onCreate(savedInstanceState);\n        weakContext = new WeakReference<>(this);`
-    );
-
-    fs.writeFileSync(mainActivityPath, content, 'utf-8');
   } catch (err) {
-    console.error('[Cordova Hook] ❌ Failed to patch MainActivity:', err.message);
+    console.error('[Cordova Hook] ❌ Failed to replace MainActivity:', err.message);
   }
 }
 

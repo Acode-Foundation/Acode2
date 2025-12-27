@@ -29,6 +29,78 @@ module.exports = {
   },
 
 
+
+  /**
+   * Add a custom item to the text selection menu
+   */
+  addSelectionMenuItem: function (id, title, onClick, onError) {
+      cordova.exec(onClick, onError, 'System', 'editor-menu-add-item', [id, title]);
+  },
+
+  /**
+   * Remove a custom item from the text selection menu
+   */
+  removeSelectionMenuItem: function (id, onSuccess, onError) {
+      onSuccess = onSuccess || function () {};
+      onError = onError || function () {};
+      cordova.exec(onSuccess, onError, 'System', 'editor-menu-remove-item', [id]);
+  },
+
+  /**
+   * Enable or disable a specific selection menu item
+   */
+  setSelectionMenuItemEnabled: function (id, enabled, onSuccess, onError) {
+      onSuccess = onSuccess || function () {};
+      onError = onError || function () {};
+      cordova.exec(
+          onSuccess,
+          onError,
+          'System',
+          'editor-menu-set-item-enabled',
+          [id, enabled]
+      );
+  },
+
+  /**
+   * Enable or disable all custom selection menu items
+   */
+  setAllSelectionMenuItemsEnabled: function (enabled, onSuccess, onError) {
+      onSuccess = onSuccess || function () {};
+      onError = onError || function () {};
+      cordova.exec(
+          onSuccess,
+          onError,
+          'System',
+          'editor-menu-set-all-enabled',
+          [enabled]
+      );
+  },
+
+  /**
+   * Show or hide default Android selection menu items
+   */
+  setDefaultSelectionMenuItemsVisible: function (visible, onSuccess, onError) {
+      onSuccess = onSuccess || function () {};
+      onError = onError || function () {};
+      cordova.exec(
+          onSuccess,
+          onError,
+          'System',
+          'editor-menu-set-keep-defaults',
+          [visible]
+      );
+  },
+
+  /**
+   * Remove all custom selection menu items
+   */
+  clearSelectionMenuItems: function (onSuccess, onError) {
+      onSuccess = onSuccess || function () {};
+      onError = onError || function () {};
+      cordova.exec(onSuccess, onError, 'System', 'editor-menu-clear', []);
+  },
+
+
   getNativeLibraryPath: function (success, error) {
     cordova.exec(success, error, 'System', 'getNativeLibraryPath', []);
   },

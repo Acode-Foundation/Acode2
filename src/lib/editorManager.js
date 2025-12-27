@@ -1538,6 +1538,11 @@ async function EditorManager($header, $body) {
 				const onKeyboardHide = () => {
 					keyboardHandler.off("keyboardHide", onKeyboardHide);
 					blur();
+					system.setAllSelectionMenuItemsEnabled(
+						false,
+						() => {},
+						console.error,
+					);
 				};
 				keyboardHandler.on("keyboardHide", onKeyboardHide);
 			},
@@ -1546,6 +1551,7 @@ async function EditorManager($header, $body) {
 				if (activeFile) {
 					activeFile.focused = true;
 				}
+				system.setAllSelectionMenuItemsEnabled(true, () => {}, console.error);
 			},
 			keydown: (event, view) => {
 				if (event.key === "Escape") {
