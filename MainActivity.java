@@ -48,6 +48,7 @@ public class MainActivity extends CordovaActivity
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        weakContext = new WeakReference<>(this);
 
         loadUrl(launchUrl);
         
