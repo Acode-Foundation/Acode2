@@ -1,7 +1,7 @@
 package com.foxdebug.system;
 
 import android.app.Activity;
-import android.view.ContextMenu;
+import android.view.ActionMode;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Singleton manager for WebView / Editor context menu
+ * Singleton manager for WebView / Editor selection menu (ActionMode)
  * Designed for Cordova (SystemWebView)
  */
 public final class EditorContextMenu {
@@ -51,15 +51,21 @@ public final class EditorContextMenu {
 
     private final Map<Integer, Item> items = new HashMap<>();
     private boolean globallyEnabled = true;
+    private ActionMode currentActionMode = null;
+    private boolean keepDefaultItems = true;
 
     /* ---------------- public API ---------------- */
 
     public void attach(Activity activity, View webView) {
-        activity.registerForContextMenu(webView);
+        // ActionMode is automatically handled by MainActivity.onActionModeStarted
+        // This method is kept for API compatibility
     }
 
     public void detach(Activity activity, View webView) {
-        activity.unregisterForContextMenu(webView);
+        if (currentActionMode != null) {
+            currentActionMode.finish();
+            currentActionMode = null;
+        }
         clear();
     }
 
@@ -73,34 +79,85 @@ public final class EditorContextMenu {
 
     public void removeItem(int id) {
         items.remove(id);
+        
+        // Refresh the menu if currently showing
+        if (currentActionMode != null) {
+            currentActionMode.invalidate();
+        }
     }
 
     public void setItemEnabled(int id, boolean enabled) {
         Item item = items.get(id);
-        if (item != null) item.enabled = enabled;
-    }
-
-    public void setAllEnabled(boolean enabled) {
-        globallyEnabled = enabled;
-    }
-
-    public void clear() {
-        items.clear();
-    }
-
-    /* ---------------- Activity hooks ---------------- */
-
-    public void onCreateContextMenu(ContextMenu menu) {
-        if (!globallyEnabled) return;
-
-        for (Item item : items.values()) {
-            if (item.enabled) {
-                menu.add(Menu.NONE, item.id, Menu.NONE, item.title);
+        if (item != null) {
+            item.enabled = enabled;
+            
+            // Refresh the menu if currently showing
+            if (currentActionMode != null) {
+                currentActionMode.invalidate();
             }
         }
     }
 
-    public boolean onContextItemSelected(MenuItem menuItem) {
+    public void setAllEnabled(boolean enabled) {
+        globallyEnabled = enabled;
+        
+        // Refresh the menu if currently showing
+        if (currentActionMode != null) {
+            currentActionMode.invalidate();
+        }
+    }
+
+    public void setKeepDefaultItems(boolean keep) {
+        keepDefaultItems = keep;
+    }
+
+    public void clear() {
+        items.clear();
+        
+        // Refresh the menu if currently showing
+        if (currentActionMode != null) {
+            currentActionMode.invalidate();
+        }
+    }
+
+    /* ---------------- Activity hooks (called from MainActivity) ---------------- */
+
+    public void onActionModeStarted(ActionMode mode) {
+        currentActionMode = mode;
+    }
+
+    public void onActionModeFinished(ActionMode mode) {
+        if (currentActionMode == mode) {
+            currentActionMode = null;
+        }
+    }
+
+    public void onPrepareActionMode(Menu menu) {
+        if (!globallyEnabled) return;
+
+        // Remove default items if requested
+        if (!keepDefaultItems) {
+            menu.clear();
+        }
+
+        // Add custom items
+        for (Item item : items.values()) {
+            if (item.enabled) {
+                MenuItem menuItem = menu.add(Menu.NONE, item.id, Menu.NONE, item.title);
+                menuItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+                
+                // Set click listener
+                menuItem.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
+                    @Override
+                    public boolean onMenuItemClick(MenuItem clickedItem) {
+                        return onActionItemClicked(clickedItem);
+                    }
+                });
+            }
+        }
+    }
+
+    private boolean onActionItemClicked(MenuItem menuItem) {
         Item item = items.get(menuItem.getItemId());
         if (item == null || !item.enabled || !globallyEnabled) {
             return false;
@@ -117,6 +174,11 @@ public final class EditorContextMenu {
             );
             pr.setKeepCallback(true);
             item.callback.sendPluginResult(pr);
+            
+            // Finish the action mode
+            if (currentActionMode != null) {
+                currentActionMode.finish();
+            }
         } catch (Exception e) {
             item.callback.error(e.getMessage());
         }

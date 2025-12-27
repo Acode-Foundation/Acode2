@@ -28,56 +28,78 @@ module.exports = {
     cordova.exec(success, error, 'System', 'setExec', [path, String(executable)]);
   },
 
-  //id must be a int
-  attachEditorMenu(id,title, onClick, onError) {
-    if (typeof onClick !== "function") {
-      throw new Error("attachEditorMenu requires a success callback");
-    }
 
-    cordova.exec(
-      onClick,
-      onError || function () {},
-      "System",
-      "attachEditorMenu",
-      [id,title]
-    );
+
+  /**
+   * Add a custom item to the text selection menu
+   */
+  addSelectionMenuItem: function (id, title, onClick, onError) {
+      cordova.exec(onClick, onError, 'System', 'editor-menu-add-item', [id, title]);
   },
 
-  dettachEditorMenu(id) {
-    return new Promise((resolve, reject) => {
+  /**
+   * Remove a custom item from the text selection menu
+   */
+  removeSelectionMenuItem: function (id, onSuccess, onError) {
+      onSuccess = onSuccess || function () {};
+      onError = onError || function () {};
+      cordova.exec(onSuccess, onError, 'System', 'editor-menu-remove-item', [id]);
+  },
+
+  /**
+   * Enable or disable a specific selection menu item
+   */
+  setSelectionMenuItemEnabled: function (id, enabled, onSuccess, onError) {
+      onSuccess = onSuccess || function () {};
+      onError = onError || function () {};
       cordova.exec(
-        resolve,
-        reject,
-        "System",
-        "dettachEditorMenu",
-        [id]
+          onSuccess,
+          onError,
+          'System',
+          'editor-menu-set-item-enabled',
+          [id, enabled]
       );
-    });
   },
 
-  enableEditorMenu() {
-    return new Promise((resolve, reject) => {
+  /**
+   * Enable or disable all custom selection menu items
+   */
+  setAllSelectionMenuItemsEnabled: function (enabled, onSuccess, onError) {
+      onSuccess = onSuccess || function () {};
+      onError = onError || function () {};
       cordova.exec(
-        resolve,
-        reject,
-        "System",
-        "enableEditorMenu",
-        []
+          onSuccess,
+          onError,
+          'System',
+          'editor-menu-set-all-enabled',
+          [enabled]
       );
-    });
   },
 
-   disableEditorMenu() {
-    return new Promise((resolve, reject) => {
+  /**
+   * Show or hide default Android selection menu items
+   */
+  setDefaultSelectionMenuItemsVisible: function (visible, onSuccess, onError) {
+      onSuccess = onSuccess || function () {};
+      onError = onError || function () {};
       cordova.exec(
-        resolve,
-        reject,
-        "System",
-        "disableEditorMenu",
-        []
+          onSuccess,
+          onError,
+          'System',
+          'editor-menu-set-keep-defaults',
+          [visible]
       );
-    });
   },
+
+  /**
+   * Remove all custom selection menu items
+   */
+  clearSelectionMenuItems: function (onSuccess, onError) {
+      onSuccess = onSuccess || function () {};
+      onError = onError || function () {};
+      cordova.exec(onSuccess, onError, 'System', 'editor-menu-clear', []);
+  },
+
 
   getNativeLibraryPath: function (success, error) {
     cordova.exec(success, error, 'System', 'getNativeLibraryPath', []);

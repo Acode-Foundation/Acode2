@@ -50,39 +50,32 @@ public class MainActivity extends CordovaActivity
         super.onCreate(savedInstanceState);
 
         loadUrl(launchUrl);
+        
+        // Attach EditorContextMenu to the WebView
+        EditorContextMenu.get().attach(this, ((SystemWebViewEngine)appView.getEngine()).getView());
     }
 
     @Override
     public void onActionModeStarted(ActionMode mode) {
         if (mActionMode == null) {
             mActionMode = mode;
+            
+            // Notify the EditorContextMenu manager
+            EditorContextMenu.get().onActionModeStarted(mode);
+            
+            // Add custom menu items
             Menu menu = mode.getMenu();
-            
-            // Add custom menu item
-            menu.add(Menu.NONE, 1001, 0, "Format Code").setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
-                @Override
-                public boolean onMenuItemClick(MenuItem item) {
-                    // TODO: Add your format code logic here
-                    // You can send this event to JavaScript via Cordova plugin
-                    if (mActionMode != null) {
-                        mActionMode.finish();
-                    }
-                    return true;
-                }
-            });
-            
-            // If you want to remove default items, uncomment:
-            // menu.removeItem(android.R.id.copy);
-            // menu.removeItem(android.R.id.selectAll);
-            // menu.removeItem(android.R.id.cut);
-            // menu.removeItem(android.R.id.paste);
+            EditorContextMenu.get().onPrepareActionMode(menu);
         }
         super.onActionModeStarted(mode);
     }
 
     @Override
     public void onActionModeFinished(ActionMode mode) {
+        // Notify the EditorContextMenu manager
+        EditorContextMenu.get().onActionModeFinished(mode);
+        
         mActionMode = null;
         super.onActionModeFinished(mode);
     }
-}
+} 

@@ -170,32 +170,29 @@ public class System extends CordovaPlugin {
             case "encode":
             case "copyToUri":
                 break;
-
-
-            case "attachEditorMenu":
-                EditorContextMenu.get().addItem(args.optInt(0, -1), arg2, callbackContext);
-                return true;
-            
-
-            case "dettachEditorMenu":
-               
-                EditorContextMenu.get().removeItem(args.optInt(0, -1));
-                callbackContext.success();
-                return true;
-            
-
-            case "enableEditorMenu":
-                EditorContextMenu.get().setAllEnabled(true);
-                callbackContext.success();
+            case "editor-menu-add-item":
+                editorMenuAddItem(args, callbackContext);
                 return true;
 
-            case "disableEditorMenu":
-                EditorContextMenu.get().setAllEnabled(false);
-                callbackContext.success();
+            case "editor-menu-remove-item":
+                editorMenuRemoveItem(args, callbackContext);
                 return true;
 
+            case "editor-menu-set-item-enabled":
+                editorMenuSetItemEnabled(args, callbackContext);
+                return true;
 
+            case "editor-menu-set-all-enabled":
+                editorMenuSetAllEnabled(args, callbackContext);
+                return true;
 
+            case "editor-menu-set-keep-defaults":
+                editorMenuSetKeepDefaults(args, callbackContext);
+                return true;
+
+            case "editor-menu-clear":
+                editorMenuClear(callbackContext);
+                return true;
             case "get-configuration":
                 getConfiguration(callbackContext);
                 return true;
@@ -539,6 +536,77 @@ public class System extends CordovaPlugin {
             );
 
         return true;
+    }
+
+        private void editorMenuAddItem(JSONArray args, CallbackContext callbackContext) throws JSONException {
+        final int id = args.getInt(0);
+        final String title = args.getString(1);
+        
+        cordova.getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                EditorContextMenu.get().addItem(id, title, callbackContext);
+            }
+        });
+    }
+
+    private void editorMenuRemoveItem(JSONArray args, CallbackContext callbackContext) throws JSONException {
+        final int id = args.getInt(0);
+        
+        cordova.getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                EditorContextMenu.get().removeItem(id);
+                callbackContext.success();
+            }
+        });
+    }
+
+    private void editorMenuSetItemEnabled(JSONArray args, CallbackContext callbackContext) throws JSONException {
+        final int id = args.getInt(0);
+        final boolean enabled = args.getBoolean(1);
+        
+        cordova.getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                EditorContextMenu.get().setItemEnabled(id, enabled);
+                callbackContext.success();
+            }
+        });
+    }
+
+    private void editorMenuSetAllEnabled(JSONArray args, CallbackContext callbackContext) throws JSONException {
+        final boolean enabled = args.getBoolean(0);
+        
+        cordova.getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                EditorContextMenu.get().setAllEnabled(enabled);
+                callbackContext.success();
+            }
+        });
+    }
+
+    private void editorMenuSetKeepDefaults(JSONArray args, CallbackContext callbackContext) throws JSONException {
+        final boolean keep = args.getBoolean(0);
+        
+        cordova.getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                EditorContextMenu.get().setKeepDefaultItems(keep);
+                callbackContext.success();
+            }
+        });
+    }
+
+    private void editorMenuClear(CallbackContext callbackContext) {
+        cordova.getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                EditorContextMenu.get().clear();
+                callbackContext.success();
+            }
+        });
     }
 
     private void sendLogToJavaScript(String level, String message) {
