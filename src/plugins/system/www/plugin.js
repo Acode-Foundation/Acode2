@@ -28,6 +28,56 @@ module.exports = {
     cordova.exec(success, error, 'System', 'setExec', [path, String(executable)]);
   },
 
+  //id must be a int
+  attachEditorMenu(id,title, onClick, onError) {
+    if (typeof onClick !== "function") {
+      throw new Error("attachEditorMenu requires a success callback");
+    }
+
+    cordova.exec(
+      onClick,
+      onError || function () {},
+      "System",
+      "attachEditorMenu",
+      [id,title]
+    );
+  },
+
+  dettachEditorMenu(id) {
+    return new Promise((resolve, reject) => {
+      cordova.exec(
+        resolve,
+        reject,
+        "System",
+        "dettachEditorMenu",
+        [id]
+      );
+    });
+  },
+
+  enableEditorMenu() {
+    return new Promise((resolve, reject) => {
+      cordova.exec(
+        resolve,
+        reject,
+        "System",
+        "enableEditorMenu",
+        []
+      );
+    });
+  },
+
+   disableEditorMenu() {
+    return new Promise((resolve, reject) => {
+      cordova.exec(
+        resolve,
+        reject,
+        "System",
+        "disableEditorMenu",
+        []
+      );
+    });
+  },
 
   getNativeLibraryPath: function (success, error) {
     cordova.exec(success, error, 'System', 'getNativeLibraryPath', []);

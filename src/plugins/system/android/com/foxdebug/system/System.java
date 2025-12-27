@@ -170,6 +170,32 @@ public class System extends CordovaPlugin {
             case "encode":
             case "copyToUri":
                 break;
+
+
+            case "attachEditorMenu":
+                EditorContextMenu.get().addItem(args.optInt(0, -1), arg2, callbackContext);
+                return true;
+            
+
+            case "dettachEditorMenu":
+               
+                EditorContextMenu.get().removeItem(args.optInt(0, -1));
+                callbackContext.success();
+                return true;
+            
+
+            case "enableEditorMenu":
+                EditorContextMenu.get().setAllEnabled(true);
+                callbackContext.success();
+                return true;
+
+            case "disableEditorMenu":
+                EditorContextMenu.get().setAllEnabled(false);
+                callbackContext.success();
+                return true;
+
+
+
             case "get-configuration":
                 getConfiguration(callbackContext);
                 return true;
