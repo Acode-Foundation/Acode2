@@ -296,7 +296,9 @@ function parseNode(types, node) {
 	if (type === "JSXText") {
 		const trimmed = node.value.trim();
 		if (!trimmed) return null;
-		return types.stringLiteral(trimmed);
+		// Preserve original text if it contains non-whitespace
+		// This maintains intentional spacing like "Hello " in <span>Hello </span>
+		return types.stringLiteral(node.value);
 	}
 
 	if (type === "JSXElement") {
