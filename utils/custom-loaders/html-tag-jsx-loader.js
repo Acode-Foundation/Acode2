@@ -15,7 +15,7 @@ module.exports = function htmlTagJsxLoader(source) {
 
 	try {
 		// Debug logging - verify loader is running
-		console.log(`🔧 Custom JSX loader processing: ${this.resourcePath}\n`);
+		// console.log(`🔧 Custom JSX loader processing: ${this.resourcePath}\n`);
 
 		// Determine file type from extension
 		const isTypeScript = /\.tsx?$/.test(this.resourcePath);
@@ -24,7 +24,7 @@ module.exports = function htmlTagJsxLoader(source) {
 		// Look for complete JSX opening tags with proper spacing
 		const hasJSXLike =
 			/<\/?[A-Z][a-zA-Z0-9]*[^>]*>|<\/?[a-z][a-z0-9-]*[^>]*>/.test(source);
-		console.log(`loader :: ${this.resourcePath}`, { hasJSXLike });
+
 		if (!hasJSXLike) {
 			return callback(null, source);
 		}
@@ -230,20 +230,20 @@ module.exports = function htmlTagJsxLoader(source) {
 						);
 					}
 
-				if (id || className) {
-					if (className) {
-						args.push(className);
-					} else {
-						args.push(t.nullLiteral());
-					}
+					if (id || className) {
+						if (className) {
+							args.push(className);
+						} else {
+							args.push(t.nullLiteral());
+						}
 
-					if (id) {
-						args.push(id);
-					} else if (className) {
-						// Push null for id when we have className but no id
-						args.push(t.nullLiteral());
+						if (id) {
+							args.push(id);
+						} else if (className) {
+							// Push null for id when we have className but no id
+							args.push(t.nullLiteral());
+						}
 					}
-				}
 
 					if (children.length) {
 						args.push(t.arrayExpression(children));
