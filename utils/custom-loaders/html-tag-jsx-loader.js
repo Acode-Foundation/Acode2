@@ -15,16 +15,18 @@ module.exports = function htmlTagJsxLoader(source) {
 
 	try {
 		// Debug logging - verify loader is running
-		// console.log(`🔧 Custom JSX loader processing: ${this.resourcePath}\n`);
+		console.log(`🔧 Custom JSX loader processing: ${this.resourcePath}\n`);
 
 		// Determine file type from extension
 		const isTypeScript = /\.tsx?$/.test(this.resourcePath);
 
 		// Quick check: if no JSX syntax at all, pass through unchanged
 		// Look for complete JSX opening tags with proper spacing
-		const hasJSXLike = /<[A-Z][a-zA-Z0-9]*(?:\s|\/?>)|<[a-z]+(?:\s|\/?>)/.test(source);
+		const hasJSXLike =
+			/<\/?[A-Z][a-zA-Z0-9]*[^>]*>|<\/?[a-z][a-z0-9-]*[^>]*>/.test(source);
+		console.log(`loader :: ${this.resourcePath}`, { hasJSXLike });
 		if (!hasJSXLike) {
-			return callback(null, source)
+			return callback(null, source);
 		}
 
 		// Parse with appropriate plugins
@@ -42,8 +44,12 @@ module.exports = function htmlTagJsxLoader(source) {
 		let needsTagImport = false;
 		let hasJSX = false;
 		const hasExistingImport =
-			/import\s+(?:\{[^}]*\btag\b[^}]*\}|tag(?:\s+as\s+\w+)?)\s+from\s+['"]html-tag-js['"]/.test(source) ||
-			/(?:const|let|var)\s+(?:\{[^}]*\btag\b[^}]*\}|tag)\s*=\s*require\s*\(\s*['"]html-tag-js['"]\s*\)/.test(source);
+			/import\s+(?:\{[^}]*\btag\b[^}]*\}|tag(?:\s+as\s+\w+)?)\s+from\s+['"]html-tag-js['"]/.test(
+				source,
+			) ||
+			/(?:const|let|var)\s+(?:\{[^}]*\btag\b[^}]*\}|tag)\s*=\s*require\s*\(\s*['"]html-tag-js['"]\s*\)/.test(
+				source,
+			);
 
 		// Transform JSX elements
 		traverse(ast, {
