@@ -20,14 +20,14 @@ module.exports = (env, options) => {
                 tsx: false,
               },
               transform: {
-                react: {
-                  pragma: 'tag',
-                  pragmaFrag: 'Array',
-                  throwIfNamespace: false,
-                  development: false,
-                  useBuiltins: false,
-                  runtime: 'classic',
-                },
+                // react: {
+                //   pragma: 'tag',
+                //   pragmaFrag: 'Array',
+                //   throwIfNamespace: false,
+                //   development: false,
+                //   useBuiltins: false,
+                //   runtime: 'classic',
+                // },
               },
               target: 'es2015',
             },
