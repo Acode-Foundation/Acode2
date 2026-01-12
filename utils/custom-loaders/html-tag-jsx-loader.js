@@ -230,17 +230,20 @@ module.exports = function htmlTagJsxLoader(source) {
 						);
 					}
 
-					if (id || className) {
-						if (className) {
-							args.push(className);
-						} else if (id) {
-							args.push(t.nullLiteral());
-						}
-
-						if (id) {
-							args.push(id);
-						}
+				if (id || className) {
+					if (className) {
+						args.push(className);
+					} else {
+						args.push(t.nullLiteral());
 					}
+
+					if (id) {
+						args.push(id);
+					} else if (className) {
+						// Push null for id when we have className but no id
+						args.push(t.nullLiteral());
+					}
+				}
 
 					if (children.length) {
 						args.push(t.arrayExpression(children));
